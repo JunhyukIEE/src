@@ -50,7 +50,12 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
+#include "rate_bound_status.hpp"
+#include <memory>
+
 rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub;
+std::unique_ptr<custom_diagnostic_tasks::RateBoundStatus> rate_bound_status;
+std::unique_ptr<diagnostic_updater::Updater> diag_updater;
 
 uint16_t counter;
 int16_t angular_velocity_x_raw = 0;
@@ -93,6 +98,7 @@ void receive_CAN(const can_msgs::msg::Frame::ConstSharedPtr msg)
     imu_msg.orientation.z = 0.0;
     imu_msg.orientation.w = 1.0;
     pub->publish(imu_msg);
+    rate_bound_status->tick();
   }
 }
 
@@ -102,6 +108,24 @@ int main(int argc, char ** argv)
 
   auto node = rclcpp::Node::make_shared("tag_can_driver");
   imu_frame_id = node->declare_parameter<std::string>("imu_frame_id", "imu");
+  auto frequency_reference = node->declare_parameter<double>("frequency_reference", 200.0);
+  auto ok_min_freq = node->declare_parameter<double>(
+    "diagnostics.rate_bound_status.frequency_ok.min_hz", 100.0);
+  auto ok_max_freq = node->declare_parameter<double>(
+    "diagnostics.rate_bound_status.frequency_ok.max_hz", 10000.0);
+  auto warn_min_freq = node->declare_parameter<double>(
+    "diagnostics.rate_bound_status.frequency_warn.min_hz", 50.0);
+  auto warn_max_freq = node->declare_parameter<double>(
+    "diagnostics.rate_bound_status.frequency_warn.max_hz", 100000.0);
+  node->declare_parameter<bool>("diagnostic_updater.use_fqn", true);  // read by diagnostic updater
+  rate_bound_status = std::make_unique<custom_diagnostic_tasks::RateBoundStatus>(
+    node.get(), custom_diagnostic_tasks::RateBoundStatusParam(ok_min_freq, ok_max_freq),
+    custom_diagnostic_tasks::RateBoundStatusParam(warn_min_freq, warn_max_freq), 2, false);
+  diag_updater = std::make_unique<diagnostic_updater::Updater>(node);
+  diag_updater->setHardwareID(imu_frame_id);
+  diag_updater->setPeriod(1.0 / frequency_reference);
+  diag_updater->add(*rate_bound_status);
+  diag_updater->force_update();
   rclcpp::Subscription<can_msgs::msg::Frame>::SharedPtr sub = node->create_subscription<can_msgs::msg::Frame>("/can/imu", 100, receive_CAN);
   pub = node->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 100);
   rclcpp::spin(node);

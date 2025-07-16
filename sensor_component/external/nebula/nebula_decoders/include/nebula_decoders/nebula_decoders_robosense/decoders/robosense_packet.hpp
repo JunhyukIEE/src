@@ -1,18 +1,32 @@
+// Copyright 2024 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
-#include "boost/endian/buffers.hpp"
+#include <nebula_common/robosense/robosense_common.hpp>
+
+#include <boost/endian/buffers.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
-using namespace boost::endian;
+using namespace boost::endian;  // NOLINT(build/namespaces)
 
-namespace nebula
-{
-namespace drivers
-{
-namespace robosense_packet
+namespace nebula::drivers::robosense_packet
 {
 
 #pragma pack(push, 1)
@@ -24,16 +38,15 @@ struct Timestamp
 
   uint64_t get_time_in_ns() const
   {
-    constexpr uint64_t NS_IN_SECOND = 1000000000ULL;
-    constexpr uint64_t NS_IN_MICROSECOND = 1000ULL;
+    constexpr uint64_t ns_in_second = 1000000000ULL;
+    constexpr uint64_t ns_in_microsecond = 1000ULL;
 
-    uint64_t total_nanoseconds = seconds.value() * NS_IN_SECOND;
-    total_nanoseconds += microseconds.value() * NS_IN_MICROSECOND;
+    uint64_t total_nanoseconds = seconds.value() * ns_in_second;
+    total_nanoseconds += microseconds.value() * ns_in_microsecond;
 
     return total_nanoseconds;
   }
 };
-
 
 struct Unit
 {
@@ -69,10 +82,10 @@ struct Body
 template <size_t nBlocks, size_t nChannels, size_t maxReturns, size_t degreeSubdivisions>
 struct PacketBase
 {
-  static constexpr size_t N_BLOCKS = nBlocks;
-  static constexpr size_t N_CHANNELS = nChannels;
-  static constexpr size_t MAX_RETURNS = maxReturns;
-  static constexpr size_t DEGREE_SUBDIVISIONS = degreeSubdivisions;
+  static constexpr size_t n_blocks = nBlocks;
+  static constexpr size_t n_channels = nChannels;
+  static constexpr size_t max_returns = maxReturns;
+  static constexpr size_t degree_subdivisions = degreeSubdivisions;
 };
 
 struct IpAddress
@@ -128,18 +141,17 @@ struct FovSetting
   big_uint16_buf_t fov_end;
 };
 
-constexpr uint8_t ANGLE_SIGN_FLAG = 0x00;
+constexpr uint8_t angle_sign_flag = 0x00;
 
 struct ChannelAngleCorrection
 {
   big_uint8_buf_t sign;
   big_uint16_buf_t angle;
 
-  [[nodiscard]] float getAngle() const
+  [[nodiscard]] float get_angle() const
   {
-    return sign.value() == ANGLE_SIGN_FLAG
-             ? static_cast<float>(angle.value()) / 100.0f
-             : static_cast<float>(angle.value()) / -100.0f;
+    return sign.value() == angle_sign_flag ? static_cast<float>(angle.value()) / 100.0f
+                                           : static_cast<float>(angle.value()) / -100.0f;
   }
 };
 
@@ -158,13 +170,13 @@ struct SensorCalibration
   CorrectedVerticalAngle corrected_vertical_angle;
   CorrectedHorizontalAngle corrected_horizontal_angle;
 
-  RobosenseCalibrationConfiguration getCalibration() const
+  RobosenseCalibrationConfiguration get_calibration() const
   {
     RobosenseCalibrationConfiguration calibration;
     for (size_t i = 0; i < 32; ++i) {
       ChannelCorrection channel_correction;
-      channel_correction.azimuth = corrected_horizontal_angle.angles[i].getAngle();
-      channel_correction.elevation = corrected_vertical_angle.angles[i].getAngle();
+      channel_correction.azimuth = corrected_horizontal_angle.angles[i].get_angle();
+      channel_correction.elevation = corrected_vertical_angle.angles[i].get_angle();
       calibration.calibration.push_back(channel_correction);
     }
     return calibration;
@@ -218,7 +230,7 @@ struct SerialNumber
 /// @brief Get the number of returns for a given return mode
 /// @param return_mode The return mode
 /// @return The number of returns
-size_t get_n_returns(ReturnMode return_mode)
+inline size_t get_n_returns(ReturnMode return_mode)
 {
   if (return_mode == ReturnMode::DUAL) {
     return 2;
@@ -257,11 +269,9 @@ double get_dis_unit(const PacketT & packet)
 /// @brief Convert raw angle value from packet to std::string
 /// @param raw_angle The raw angle value from the packet
 /// @return The angle as std::string
-std::string get_float_value(const uint16_t & raw_angle)
+inline std::string get_float_value(const uint16_t & raw_angle)
 {
   return std::to_string(static_cast<float>(raw_angle) / 100.0f);
 }
 
-}  // namespace robosense_packet
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers::robosense_packet

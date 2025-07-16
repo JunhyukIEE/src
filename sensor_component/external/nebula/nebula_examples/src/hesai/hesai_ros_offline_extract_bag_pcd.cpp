@@ -14,21 +14,25 @@
 
 #include "hesai/hesai_ros_offline_extract_bag_pcd.hpp"
 
-#include "rclcpp/serialization.hpp"
-#include "rclcpp/serialized_message.hpp"
-#include "rcpputils/filesystem_helper.hpp"
-#include "rcutils/time.h"
-#include "rosbag2_cpp/reader.hpp"
-#include "rosbag2_cpp/readers/sequential_reader.hpp"
-#include "rosbag2_cpp/writer.hpp"
-#include "rosbag2_cpp/writers/sequential_writer.hpp"
-#include "rosbag2_storage/storage_options.hpp"
+#include <nebula_common/hesai/hesai_common.hpp>
+#include <nebula_ros/common/rclcpp_logger.hpp>
+#include <rclcpp/serialization.hpp>
+#include <rclcpp/serialized_message.hpp>
+#include <rcpputils/filesystem_helper.hpp>
+#include <rosbag2_cpp/reader.hpp>
+#include <rosbag2_cpp/readers/sequential_reader.hpp>
+#include <rosbag2_cpp/writers/sequential_writer.hpp>
+#include <rosbag2_storage/storage_options.hpp>
 
+#include <pcl_conversions/pcl_conversions.h>
+
+#include <iostream>
+#include <memory>
 #include <regex>
+#include <string>
+#include <vector>
 
-namespace nebula
-{
-namespace ros
+namespace nebula::ros
 {
 HesaiRosOfflineExtractBag::HesaiRosOfflineExtractBag(
   const rclcpp::NodeOptions & options, const std::string & node_name)
@@ -39,9 +43,9 @@ HesaiRosOfflineExtractBag::HesaiRosOfflineExtractBag(
   drivers::HesaiCorrection correction_configuration;
 
   wrapper_status_ =
-    GetParameters(sensor_configuration, calibration_configuration, correction_configuration);
+    get_parameters(sensor_configuration, calibration_configuration, correction_configuration);
   if (Status::OK != wrapper_status_) {
-    RCLCPP_ERROR_STREAM(this->get_logger(), this->get_name() << " Error:" << wrapper_status_);
+    RCLCPP_ERROR_STREAM(this->get_logger(), this->get_name() << " Error: " << wrapper_status_);
     return;
   }
   RCLCPP_INFO_STREAM(this->get_logger(), this->get_name() << ". Starting...");
@@ -54,185 +58,96 @@ HesaiRosOfflineExtractBag::HesaiRosOfflineExtractBag(
   RCLCPP_INFO_STREAM(this->get_logger(), this->get_name() << ". Driver ");
   if (sensor_configuration.sensor_model == drivers::SensorModel::HESAI_PANDARAT128) {
     correction_cfg_ptr_ = std::make_shared<drivers::HesaiCorrection>(correction_configuration);
-    wrapper_status_ = InitializeDriver(
+    wrapper_status_ = initialize_driver(
       std::const_pointer_cast<drivers::SensorConfigurationBase>(sensor_cfg_ptr_),
-      std::static_pointer_cast<drivers::CalibrationConfigurationBase>(calibration_cfg_ptr_),
-      std::static_pointer_cast<drivers::HesaiCorrection>(correction_cfg_ptr_));
+      correction_cfg_ptr_);
   } else {
-    wrapper_status_ = InitializeDriver(
+    wrapper_status_ = initialize_driver(
       std::const_pointer_cast<drivers::SensorConfigurationBase>(sensor_cfg_ptr_),
-      std::static_pointer_cast<drivers::CalibrationConfigurationBase>(calibration_cfg_ptr_));
+      calibration_cfg_ptr_);
   }
 
   RCLCPP_INFO_STREAM(this->get_logger(), this->get_name() << "Wrapper=" << wrapper_status_);
 }
 
-Status HesaiRosOfflineExtractBag::InitializeDriver(
+Status HesaiRosOfflineExtractBag::initialize_driver(
   std::shared_ptr<drivers::SensorConfigurationBase> sensor_configuration,
-  std::shared_ptr<drivers::CalibrationConfigurationBase> calibration_configuration)
+  std::shared_ptr<drivers::HesaiCalibrationConfigurationBase> calibration_configuration)
 {
-  // driver should be initialized here with proper decoder
   driver_ptr_ = std::make_shared<drivers::HesaiDriver>(
     std::static_pointer_cast<drivers::HesaiSensorConfiguration>(sensor_configuration),
-    std::static_pointer_cast<drivers::HesaiCalibrationConfiguration>(calibration_configuration));
-  return driver_ptr_->GetStatus();
+    calibration_configuration, std::make_shared<drivers::loggers::RclcppLogger>(get_logger()));
+  return driver_ptr_->get_status();
 }
 
-Status HesaiRosOfflineExtractBag::InitializeDriver(
-  std::shared_ptr<drivers::SensorConfigurationBase> sensor_configuration,
-  std::shared_ptr<drivers::CalibrationConfigurationBase> calibration_configuration,
-  std::shared_ptr<drivers::HesaiCorrection> correction_configuration)
+Status HesaiRosOfflineExtractBag::get_status()
 {
-  // driver should be initialized here with proper decoder
-  driver_ptr_ = std::make_shared<drivers::HesaiDriver>(
-    std::static_pointer_cast<drivers::HesaiSensorConfiguration>(sensor_configuration),
-    std::static_pointer_cast<drivers::HesaiCalibrationConfiguration>(
-      calibration_configuration),  //);
-    std::static_pointer_cast<drivers::HesaiCorrection>(correction_configuration));
-  return driver_ptr_->GetStatus();
+  return wrapper_status_;
 }
 
-Status HesaiRosOfflineExtractBag::GetStatus() {return wrapper_status_;}
-
-Status HesaiRosOfflineExtractBag::GetParameters(
+Status HesaiRosOfflineExtractBag::get_parameters(
   drivers::HesaiSensorConfiguration & sensor_configuration,
   drivers::HesaiCalibrationConfiguration & calibration_configuration,
   drivers::HesaiCorrection & correction_configuration)
 {
+  auto sensor_model_ = this->declare_parameter<std::string>("sensor_model", "", param_read_only());
+  sensor_configuration.sensor_model = nebula::drivers::sensor_model_from_string(sensor_model_);
+  auto return_mode_ = this->declare_parameter<std::string>("return_mode", "", param_read_only());
+  sensor_configuration.return_mode =
+    nebula::drivers::return_mode_from_string_hesai(return_mode_, sensor_configuration.sensor_model);
+  this->declare_parameter<std::string>("frame_id", "pandar", param_read_only());
+  sensor_configuration.frame_id = this->get_parameter("frame_id").as_string();
+  frame_id_ = sensor_configuration.frame_id;
+
   {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("sensor_model", "");
-    sensor_configuration.sensor_model =
-      nebula::drivers::SensorModelFromString(this->get_parameter("sensor_model").as_string());
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("return_mode", "", descriptor);
-    sensor_configuration.return_mode =
-      //      nebula::drivers::ReturnModeFromString(this->get_parameter("return_mode").as_string());
-      nebula::drivers::ReturnModeFromStringHesai(
-      this->get_parameter("return_mode").as_string(), sensor_configuration.sensor_model);
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("frame_id", "pandar", descriptor);
-    sensor_configuration.frame_id = this->get_parameter("frame_id").as_string();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 3;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
+    rcl_interfaces::msg::ParameterDescriptor descriptor = param_read_only();
     descriptor.additional_constraints = "Angle where scans begin (degrees, [0.,360.]";
-    rcl_interfaces::msg::FloatingPointRange range;
-    range.set__from_value(0).set__to_value(360).set__step(0.01);
-    descriptor.floating_point_range = {range};
-    this->declare_parameter<double>("scan_phase", 0., descriptor);
-    sensor_configuration.scan_phase = this->get_parameter("scan_phase").as_double();
+    descriptor.integer_range = int_range(0, 360, 1);
+    sensor_configuration.sync_angle =
+      declare_parameter<uint16_t>("sync_angle", 0., param_read_only());
   }
+
   {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("calibration_file", "", descriptor);
-    calibration_configuration.calibration_file =
-      this->get_parameter("calibration_file").as_string();
+    rcl_interfaces::msg::ParameterDescriptor descriptor = param_read_only();
+    descriptor.additional_constraints = "Angle where scans begin (degrees, [0.,360.]";
+    descriptor.floating_point_range = float_range(0, 360, 0.01);
+    sensor_configuration.cut_angle = declare_parameter<double>("cut_angle", 0., param_read_only());
+    sensor_configuration.cloud_min_angle =
+      declare_parameter<uint16_t>("cloud_min_angle", 0, param_read_only());
+    sensor_configuration.cloud_max_angle =
+      declare_parameter<uint16_t>("cloud_max_angle", 360, param_read_only());
+    sensor_configuration.rotation_speed =
+      declare_parameter<uint16_t>("rotation_speed", 600, param_read_only());
+    sensor_configuration.dual_return_distance_threshold =
+      declare_parameter<double>("dual_return_distance_threshold", 0.1, param_read_only());
+    sensor_configuration.min_range = declare_parameter<double>("min_range", 0.3, param_read_only());
+    sensor_configuration.max_range =
+      declare_parameter<double>("max_range", 300.0, param_read_only());
+    sensor_configuration.packet_mtu_size =
+      declare_parameter<uint16_t>("packet_mtu_size", 1500, param_read_only());
   }
+
+  calibration_configuration.calibration_file =
+    this->declare_parameter<std::string>("calibration_file", "", param_read_only());
   if (sensor_configuration.sensor_model == drivers::SensorModel::HESAI_PANDARAT128) {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("correction_file", "", descriptor);
-    correction_file_path = this->get_parameter("correction_file").as_string();
+    correction_file_path_ =
+      this->declare_parameter<std::string>("correction_file", "", param_read_only());
   }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("bag_path", "", descriptor);
-    bag_path = this->get_parameter("bag_path").as_string();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("storage_id", "sqlite3", descriptor);
-    storage_id = this->get_parameter("storage_id").as_string();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("out_path", "", descriptor);
-    out_path = this->get_parameter("out_path").as_string();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("format", "cdr", descriptor);
-    format = this->get_parameter("format").as_string();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 2;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<uint16_t>("out_num", 3, descriptor);
-    out_num = this->get_parameter("out_num").as_int();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 2;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<uint16_t>("skip_num", 3, descriptor);
-    skip_num = this->get_parameter("skip_num").as_int();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 1;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<bool>("only_xyz", false, descriptor);
-    only_xyz = this->get_parameter("only_xyz").as_bool();
-  }
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.type = 4;
-    descriptor.read_only = true;
-    descriptor.dynamic_typing = false;
-    descriptor.additional_constraints = "";
-    this->declare_parameter<std::string>("target_topic", "", descriptor);
-    target_topic = this->get_parameter("target_topic").as_string();
-  }
+
+  bag_path_ = this->declare_parameter<std::string>("bag_path", "", param_read_only());
+  storage_id_ = this->declare_parameter<std::string>("storage_id", "sqlite3", param_read_only());
+  out_path_ = this->declare_parameter<std::string>("out_path", "", param_read_only());
+  format_ = this->declare_parameter<std::string>("format", "cdr", param_read_only());
+  out_num_ = this->declare_parameter<uint16_t>("out_num", 3, param_read_only());
+  skip_num_ = this->declare_parameter<uint16_t>("skip_num", 3, param_read_only());
+  only_xyz_ = this->declare_parameter<bool>("only_xyz", false, param_read_only());
+  input_topic_ = this->declare_parameter<std::string>("input_topic", "", param_read_only());
+  output_pointcloud_topic_ =
+    this->declare_parameter<std::string>("output_topic", "", param_read_only());
+  output_pcd_ = this->declare_parameter<bool>("output_pcd", false, param_read_only());
+  output_rosbag_ = this->declare_parameter<bool>("output_rosbag", true, param_read_only());
+  forward_packets_to_rosbag_ =
+    this->declare_parameter<bool>("forward_packets_to_rosbag", false, param_read_only());
 
   if (sensor_configuration.sensor_model == nebula::drivers::SensorModel::UNKNOWN) {
     return Status::INVALID_SENSOR_MODEL;
@@ -240,14 +155,14 @@ Status HesaiRosOfflineExtractBag::GetParameters(
   if (sensor_configuration.return_mode == nebula::drivers::ReturnMode::UNKNOWN) {
     return Status::INVALID_ECHO_MODE;
   }
-  if (sensor_configuration.frame_id.empty() || sensor_configuration.scan_phase > 360) {
+  if (sensor_configuration.frame_id.empty()) {
     return Status::SENSOR_CONFIG_ERROR;
   }
   if (calibration_configuration.calibration_file.empty()) {
     return Status::INVALID_CALIBRATION_FILE;
   } else {
     auto cal_status =
-      calibration_configuration.LoadFromFile(calibration_configuration.calibration_file);
+      calibration_configuration.load_from_file(calibration_configuration.calibration_file);
     if (cal_status != Status::OK) {
       RCLCPP_ERROR_STREAM(
         this->get_logger(),
@@ -256,118 +171,171 @@ Status HesaiRosOfflineExtractBag::GetParameters(
     }
   }
   if (sensor_configuration.sensor_model == drivers::SensorModel::HESAI_PANDARAT128) {
-    if (correction_file_path.empty()) {
+    if (correction_file_path_.empty()) {
       return Status::INVALID_CALIBRATION_FILE;
     } else {
-      auto cal_status = correction_configuration.LoadFromFile(correction_file_path);
+      auto cal_status = correction_configuration.load_from_file(correction_file_path_);
       if (cal_status != Status::OK) {
         RCLCPP_ERROR_STREAM(
-          this->get_logger(), "Given Correction File: '" << correction_file_path << "'");
+          this->get_logger(), "Given Correction File: '" << correction_file_path_ << "'");
         return cal_status;
       }
     }
   }
 
-  RCLCPP_INFO_STREAM(this->get_logger(), "SensorConfig:" << sensor_configuration);
+  RCLCPP_INFO_STREAM(this->get_logger(), "Sensor Configuration: " << sensor_configuration);
   return Status::OK;
 }
 
-Status HesaiRosOfflineExtractBag::ReadBag()
+Status HesaiRosOfflineExtractBag::read_bag()
 {
   rosbag2_storage::StorageOptions storage_options;
   rosbag2_cpp::ConverterOptions converter_options;
 
-  std::cout << bag_path << std::endl;
-  std::cout << storage_id << std::endl;
-  std::cout << out_path << std::endl;
-  std::cout << format << std::endl;
-  std::cout << target_topic << std::endl;
-  std::cout << out_num << std::endl;
-  std::cout << skip_num << std::endl;
-  std::cout << only_xyz << std::endl;
+  std::cout << bag_path_ << std::endl;
+  std::cout << storage_id_ << std::endl;
+  std::cout << out_path_ << std::endl;
+  std::cout << format_ << std::endl;
+  std::cout << input_topic_ << std::endl;
+  std::cout << out_num_ << std::endl;
+  std::cout << skip_num_ << std::endl;
+  std::cout << only_xyz_ << std::endl;
 
-  rcpputils::fs::path o_dir(out_path);
-  auto target_topic_name = target_topic;
-  if (target_topic_name.substr(0, 1) == "/") {
-    target_topic_name = target_topic_name.substr(1);
+  rcpputils::fs::path o_dir(out_path_);
+  auto input_topic_name = input_topic_;
+  if (input_topic_name.substr(0, 1) == "/") {
+    input_topic_name = input_topic_name.substr(1);
   }
-  target_topic_name = std::regex_replace(target_topic_name, std::regex("/"), "_");
-  o_dir = o_dir / rcpputils::fs::path(target_topic_name);
+  input_topic_name = std::regex_replace(input_topic_name, std::regex("/"), "_");
+  o_dir = o_dir / rcpputils::fs::path(input_topic_name);
   if (rcpputils::fs::create_directories(o_dir)) {
     std::cout << "created: " << o_dir << std::endl;
   }
-  //  return Status::OK;
 
-  pcl::PCDWriter writer;
+  pcl::PCDWriter pcd_writer;
 
-  std::unique_ptr<rosbag2_cpp::writers::SequentialWriter> writer_;
-  bool needs_open = true;
-  storage_options.uri = bag_path;
-  storage_options.storage_id = storage_id;
-  converter_options.output_serialization_format = format;  // "cdr";
-  {
-    rosbag2_cpp::Reader reader(std::make_unique<rosbag2_cpp::readers::SequentialReader>());
-    // reader.open(rosbag_directory.string());
-    reader.open(storage_options, converter_options);
-    int cnt = 0;
-    int out_cnt = 0;
-    while (reader.has_next()) {
-      auto bag_message = reader.read_next();
+  std::unique_ptr<rosbag2_cpp::writers::SequentialWriter> bag_writer{};
+  storage_options.uri = bag_path_;
+  storage_options.storage_id = storage_id_;
+  converter_options.output_serialization_format = format_;
 
-      std::cout << "Found topic name " << bag_message->topic_name << std::endl;
+  rosbag2_cpp::Reader reader(std::make_unique<rosbag2_cpp::readers::SequentialReader>());
+  reader.open(storage_options, converter_options);
+  int cnt = 0;
+  int out_cnt = 0;
+  bool output_limit_reached = false;
+  while (reader.has_next()) {
+    auto bag_message = reader.read_next();
 
-      if (bag_message->topic_name == target_topic) {
-        std::cout << (cnt + 1) << ", " << (out_cnt + 1) << "/" << out_num << std::endl;
-        pandar_msgs::msg::PandarScan extracted_msg;
-        rclcpp::Serialization<pandar_msgs::msg::PandarScan> serialization;
-        rclcpp::SerializedMessage extracted_serialized_msg(*bag_message->serialized_data);
-        serialization.deserialize_message(&extracted_serialized_msg, &extracted_msg);
+    std::cout << "Found topic name " << bag_message->topic_name << std::endl;
 
-        //        std::cout<<"Found data in topic " << bag_message->topic_name << ": " <<
-        //        extracted_test_msg.data << std::endl;
-        std::cout << "Found data in topic " << bag_message->topic_name << ": "
-                  << bag_message->time_stamp << std::endl;
+    if (bag_message->topic_name != input_topic_) {
+      continue;
+    }
 
-        auto pointcloud_ts = driver_ptr_->ConvertScanToPointcloud(
-          std::make_shared<pandar_msgs::msg::PandarScan>(extracted_msg));
-        auto pointcloud = std::get<0>(pointcloud_ts);
-        auto fn = std::to_string(bag_message->time_stamp) + ".pcd";
-        //        pcl::io::savePCDFileBinary((o_dir / fn).string(), *pointcloud);
+    std::cout << (cnt + 1) << ", " << (out_cnt + 1) << "/" << out_num_ << std::endl;
+    pandar_msgs::msg::PandarScan extracted_msg;
+    rclcpp::Serialization<pandar_msgs::msg::PandarScan> serialization;
+    rclcpp::SerializedMessage extracted_serialized_msg(*bag_message->serialized_data);
+    serialization.deserialize_message(&extracted_serialized_msg, &extracted_msg);
 
-        if (needs_open) {
-          const rosbag2_storage::StorageOptions storage_options_w(
-            {(o_dir / std::to_string(bag_message->time_stamp)).string(), "sqlite3"});
-          const rosbag2_cpp::ConverterOptions converter_options_w(
-            {rmw_get_serialization_format(), rmw_get_serialization_format()});
-          writer_ = std::make_unique<rosbag2_cpp::writers::SequentialWriter>();
-          writer_->open(storage_options_w, converter_options_w);
-          writer_->create_topic(
-            {bag_message->topic_name, "pandar_msgs/msg/PandarScan", rmw_get_serialization_format(),
-              ""});
-          needs_open = false;
-        }
-        writer_->write(bag_message);
-        cnt++;
-        if (skip_num < cnt) {
-          out_cnt++;
-          if (only_xyz) {
-            pcl::PointCloud<pcl::PointXYZ> cloud_xyz;
-            pcl::copyPointCloud(*pointcloud, cloud_xyz);
-            writer.writeBinary((o_dir / fn).string(), cloud_xyz);
-          } else {
-            writer.writeBinary((o_dir / fn).string(), *pointcloud);
-          }
-          //          writer.writeASCII((o_dir / fn).string(), *pointcloud);
-        }
-        if (out_num <= out_cnt) {
-          break;
-        }
+    std::cout << "Found data in topic " << bag_message->topic_name << ": "
+              << bag_message->time_stamp << std::endl;
+
+    // Initialize the bag writer if it is not initialized
+    if (!bag_writer) {
+      const rosbag2_storage::StorageOptions storage_options_w(
+        {(o_dir / std::to_string(bag_message->time_stamp)).string(), "sqlite3"});
+      const rosbag2_cpp::ConverterOptions converter_options_w(
+        {rmw_get_serialization_format(), rmw_get_serialization_format()});
+      bag_writer = std::make_unique<rosbag2_cpp::writers::SequentialWriter>();
+      bag_writer->open(storage_options_w, converter_options_w);
+      if (forward_packets_to_rosbag_) {
+        bag_writer->create_topic(
+          {bag_message->topic_name, "nebula_msgs/msg/NebulaPackets", rmw_get_serialization_format(),
+           ""});
+      }
+      if (output_rosbag_) {
+        bag_writer->create_topic(
+          {output_pointcloud_topic_, "sensor_msgs/msg/PointCloud2", rmw_get_serialization_format(),
+           ""});
       }
     }
-    // close on scope exit
+
+    // Forward the bag_message
+    if (forward_packets_to_rosbag_) {
+      bag_writer->write(bag_message);
+    }
+
+    nebula_msgs::msg::NebulaPackets nebula_msg;
+    nebula_msg.header = extracted_msg.header;
+    for (auto & pkt : extracted_msg.packets) {
+      std::vector<uint8_t> pkt_data(pkt.data.begin(), std::next(pkt.data.begin(), pkt.size));
+      auto pointcloud_ts = driver_ptr_->parse_cloud_packet(pkt_data);
+      auto pointcloud = std::get<0>(pointcloud_ts);
+
+      nebula_msgs::msg::NebulaPacket nebula_pkt;
+      nebula_pkt.stamp = pkt.stamp;
+      nebula_pkt.data.swap(pkt_data);  // move storage from `pkt_data` to `data`
+      nebula_msg.packets.push_back(nebula_pkt);
+
+      if (!pointcloud) {
+        continue;
+      }
+
+      auto fn = std::to_string(bag_message->time_stamp) + ".pcd";
+
+      cnt++;
+      if (skip_num_ < cnt) {
+        out_cnt++;
+
+        if (output_pcd_) {
+          if (only_xyz_) {
+            pcl::PointCloud<pcl::PointXYZ> cloud_xyz;
+            pcl::copyPointCloud(*pointcloud, cloud_xyz);
+            pcd_writer.writeBinary((o_dir / fn).string(), cloud_xyz);
+          } else {
+            pcd_writer.writeBinary((o_dir / fn).string(), *pointcloud);
+          }
+        }
+
+        if (output_rosbag_) {
+          // Create ROS Pointcloud from PCL pointcloud
+          sensor_msgs::msg::PointCloud2 cloud_msg;
+          pcl::toROSMsg(*pointcloud, cloud_msg);
+          cloud_msg.header = extracted_msg.header;
+          cloud_msg.header.frame_id = frame_id_;
+
+          // Create a serialized message for the pointcloud
+          rclcpp::SerializedMessage cloud_serialized_msg;
+          rclcpp::Serialization<sensor_msgs::msg::PointCloud2> cloud_serialization;
+          cloud_serialization.serialize_message(&cloud_msg, &cloud_serialized_msg);
+
+          // Create a bag message for the pointcloud
+          auto cloud_bag_msg = std::make_shared<rosbag2_storage::SerializedBagMessage>();
+          cloud_bag_msg->topic_name = output_pointcloud_topic_;
+          cloud_bag_msg->time_stamp = bag_message->time_stamp;
+
+          // Create a new shared_ptr for the serialized data
+          cloud_bag_msg->serialized_data = std::make_shared<rcutils_uint8_array_t>(
+            cloud_serialized_msg.get_rcl_serialized_message());
+
+          // Write both messages to the bag
+          bag_writer->write(cloud_bag_msg);
+        }
+      }
+
+      if (out_num_ != 0 && out_num_ <= out_cnt) {
+        output_limit_reached = true;
+        break;
+      }
+    }
+
+    if (output_limit_reached) {
+      break;
+    }
   }
   return Status::OK;
 }
 
-}  // namespace ros
-}  // namespace nebula
+}  // namespace nebula::ros

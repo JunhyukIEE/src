@@ -1,3 +1,17 @@
+// Copyright 2024 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include "nebula_common/nebula_common.hpp"
@@ -5,11 +19,13 @@
 #include "nebula_decoders/nebula_decoders_robosense/decoders/robosense_packet.hpp"
 
 #include <cstdint>
-#include <type_traits>
+#include <limits>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
-namespace nebula
-{
-namespace drivers
+namespace nebula::drivers
 {
 
 /// @brief Base class for all sensor definitions
@@ -17,11 +33,10 @@ namespace drivers
 template <typename PacketT, typename InfoPacketT>
 class RobosenseSensor
 {
-private:
 public:
   typedef PacketT packet_t;
   typedef InfoPacketT info_t;
-  typedef class AngleCorrectorCalibrationBased<PacketT::N_CHANNELS, PacketT::DEGREE_SUBDIVISIONS>
+  typedef class AngleCorrectorCalibrationBased<PacketT::n_channels, PacketT::degree_subdivisions>
     angle_corrector_t;
 
   RobosenseSensor() = default;
@@ -33,9 +48,9 @@ public:
   /// @param channel_id The point's channel id
   /// @param sensor_configuration The sensor configuration
   /// @return The relative time offset in nanoseconds
-  virtual int getPacketRelativePointTimeOffset(
+  virtual int get_packet_relative_point_time_offset(
     uint32_t block_id, uint32_t channel_id,
-    const std::shared_ptr<RobosenseSensorConfiguration> & sensor_configuration) = 0;
+    const std::shared_ptr<const RobosenseSensorConfiguration> & sensor_configuration) = 0;
 
   /// @brief For a given start block index, find the earliest (lowest) relative time offset of any
   /// point in the packet in or after the start block
@@ -43,18 +58,18 @@ public:
   /// @param sensor_configuration The sensor configuration
   /// @return The lowest point time offset (relative to the packet timestamp) of any point in or
   /// after the start block, in nanoseconds
-  int getEarliestPointTimeOffsetForBlock(
+  int get_earliest_point_time_offset_for_block(
     uint32_t start_block_id,
-    const std::shared_ptr<RobosenseSensorConfiguration> & sensor_configuration)
+    const std::shared_ptr<const RobosenseSensorConfiguration> & sensor_configuration)
   {
     const auto n_returns = robosense_packet::get_n_returns(sensor_configuration->return_mode);
     int min_offset_ns = std::numeric_limits<int>::max();
 
     for (uint32_t block_id = start_block_id; block_id < start_block_id + n_returns; ++block_id) {
-      for (uint32_t channel_id = 0; channel_id < PacketT::N_CHANNELS; ++channel_id) {
+      for (uint32_t channel_id = 0; channel_id < PacketT::n_channels; ++channel_id) {
         min_offset_ns = std::min(
           min_offset_ns,
-          getPacketRelativePointTimeOffset(block_id, channel_id, sensor_configuration));
+          get_packet_relative_point_time_offset(block_id, channel_id, sensor_configuration));
       }
     }
 
@@ -94,7 +109,7 @@ public:
   /// @param return_units The units corresponding to all the returns in the group. These are usually
   /// from the same column across adjascent blocks.
   /// @return The return type of the point
-  virtual ReturnType getReturnType(
+  virtual ReturnType get_return_type(
     ReturnMode return_mode, unsigned int return_idx,
     const std::vector<const typename PacketT::body_t::block_t::unit_t *> & return_units)
   {
@@ -119,6 +134,13 @@ public:
         return ReturnType::UNKNOWN;
     }
   }
+
+  virtual ReturnMode get_return_mode(const info_t & info_packet) = 0;
+
+  virtual RobosenseCalibrationConfiguration get_sensor_calibration(const info_t & info_packet) = 0;
+
+  virtual bool get_sync_status(const info_t & info_packet) = 0;
+
+  virtual std::map<std::string, std::string> get_sensor_info(const info_t & info_packet) = 0;
 };
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers

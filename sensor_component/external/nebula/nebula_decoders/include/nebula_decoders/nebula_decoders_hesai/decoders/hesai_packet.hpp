@@ -1,14 +1,24 @@
+// Copyright 2024 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
-
-namespace nebula
-{
-namespace drivers
-{
-namespace hesai_packet
+#include <stdexcept>
+namespace nebula::drivers::hesai_packet
 {
 
 // FIXME(mojomex) This is a workaround for the compiler being pedantic about casting `enum class`s
@@ -25,7 +35,7 @@ enum ReturnMode {
   DUAL_FIRST_LAST = 0x3b,
   DUAL_FIRST_STRONGEST = 0x3c,
   TRIPLE_FIRST_LAST_STRONGEST = 0x3d,
-  DUAL_STRONGEST_SECONDSTRONGEST = 0x3,
+  DUAL_STRONGEST_SECONDSTRONGEST = 0x3e,
 };
 }  // namespace return_mode
 
@@ -47,7 +57,7 @@ struct DateTime
 
   /// @brief Get seconds since epoch
   /// @return Whole seconds since epoch
-  uint64_t get_seconds() const
+  [[nodiscard]] uint64_t get_seconds() const
   {
     std::tm tm{};
     tm.tm_year = year - 1900 + YearOffset;
@@ -68,11 +78,11 @@ struct SecondsSinceEpoch
 
   /// @brief Get seconds since epoch
   /// @return Whole seconds since epoch
-  uint64_t get_seconds() const
+  [[nodiscard]] uint64_t get_seconds() const
   {
     uint64_t seconds = 0;
-    for (int i = 0; i < 5; ++i) {
-      seconds = (seconds << 8) | this->seconds[i];
+    for (unsigned char second : this->seconds) {
+      seconds = (seconds << 8) | second;
     }
     return seconds;
   }
@@ -133,39 +143,39 @@ struct Block
 {
   uint16_t azimuth;
   UnitT units[UnitN];
-  typedef UnitT unit_t;
+  using unit_t = UnitT;
 
-  uint32_t get_azimuth() const { return azimuth; }
+  [[nodiscard]] uint32_t get_azimuth() const { return azimuth; }
 };
 
 template <typename UnitT, size_t UnitN>
 struct FineAzimuthBlock
 {
-  typedef UnitT unit_t;
+  using unit_t = UnitT;
   uint16_t azimuth;
   uint8_t fine_azimuth;
   UnitT units[UnitN];
 
-  uint32_t get_azimuth() const { return (azimuth << 8) + fine_azimuth; }
+  [[nodiscard]] uint32_t get_azimuth() const { return (azimuth << 8) + fine_azimuth; }
 };
 
 template <typename UnitT, size_t UnitN>
 struct SOBBlock
 {
-  typedef UnitT unit_t;
+  using unit_t = UnitT;
 
   /// @brief Start of Block, 0xFFEE
   uint16_t sob;
   uint16_t azimuth;
   UnitT units[UnitN];
 
-  uint32_t get_azimuth() const { return azimuth; }
+  [[nodiscard]] uint32_t get_azimuth() const { return azimuth; }
 };
 
 template <typename BlockT, size_t BlockN>
 struct Body
 {
-  typedef BlockT block_t;
+  using block_t = BlockT;
   BlockT blocks[BlockN];
 };
 
@@ -179,10 +189,10 @@ struct Body
 template <size_t nBlocks, size_t nChannels, size_t maxReturns, size_t degreeSubdivisions>
 struct PacketBase
 {
-  static constexpr size_t N_BLOCKS = nBlocks;
-  static constexpr size_t N_CHANNELS = nChannels;
-  static constexpr size_t MAX_RETURNS = maxReturns;
-  static constexpr size_t DEGREE_SUBDIVISIONS = degreeSubdivisions;
+  static constexpr size_t n_blocks = nBlocks;
+  static constexpr size_t n_channels = nChannels;
+  static constexpr size_t max_returns = maxReturns;
+  static constexpr size_t degree_subdivisions = degreeSubdivisions;
 };
 
 #pragma pack(pop)
@@ -190,7 +200,7 @@ struct PacketBase
 /// @brief Get the number of returns for a given return mode
 /// @param return_mode The return mode
 /// @return The number of returns
-int get_n_returns(uint8_t return_mode)
+inline int get_n_returns(uint8_t return_mode)
 {
   switch (return_mode) {
     case return_mode::SINGLE_FIRST:
@@ -221,7 +231,8 @@ uint64_t get_timestamp_ns(const PacketT & packet)
   return packet.tail.date_time.get_seconds() * 1000000000 + packet.tail.timestamp * 1000;
 }
 
-/// @brief Get the distance unit of the given packet type in meters. Distance values in the packet, multiplied by this value, yield the distance in meters.
+/// @brief Get the distance unit of the given packet type in meters. Distance values in the packet,
+/// multiplied by this value, yield the distance in meters.
 /// @tparam PacketT The packet type
 /// @param packet The packet to get the distance unit from
 /// @return The distance unit in meters
@@ -232,6 +243,4 @@ double get_dis_unit(const PacketT & packet)
   return packet.header.dis_unit / 1000.;
 }
 
-}  // namespace hesai_packet
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers::hesai_packet

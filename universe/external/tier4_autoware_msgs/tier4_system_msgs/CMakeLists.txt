@@ -16,10 +16,18 @@ ament_auto_find_build_dependencies()
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AutowareState.msg"
-  "msg/DiagnosticGraph.msg"
-  "msg/DiagnosticLink.msg"
-  "msg/DiagnosticNode.msg"
+  "msg/DiagGraphStruct.msg"
+  "msg/DiagGraphStatus.msg"
+  "msg/DiagNodeStruct.msg"
+  "msg/DiagNodeStatus.msg"
+  "msg/DiagLeafStruct.msg"
+  "msg/DiagLeafStatus.msg"
+  "msg/DiagLinkStruct.msg"
+  "msg/DiagLinkStatus.msg"
   "msg/OperationModeAvailability.msg"
+  "msg/EmergencyGoalsClearCommand.msg"
+  "msg/EmergencyGoalsStamped.msg"
+  "msg/EmergencyHoldingState.msg"
   "msg/EmergencyState.msg"
   "msg/EmergencyStateStamped.msg"
   "msg/HazardStatus.msg"
@@ -27,13 +35,24 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ServiceLog.msg"
   "msg/ModeChangeAvailable.msg"
   "msg/MrmBehaviorStatus.msg"
+  "msg/CommandSourceStatus.msg"
+  "msg/CommandModeAvailability.msg"
+  "msg/CommandModeAvailabilityItem.msg"
+  "msg/CommandModeRequest.msg"
+  "msg/CommandModeRequestItem.msg"
+  "msg/CommandModeStatus.msg"
+  "msg/CommandModeStatusItem.msg"
   "srv/OperateMrm.srv"
   "srv/ChangeOperationMode.srv"
   "srv/ChangeAutowareControl.srv"
+  "srv/ChangeTopicRelayControl.srv"
+  "srv/ResetDiagGraph.srv"
+  "srv/SelectCommandSource.srv"
   DEPENDENCIES
     autoware_common_msgs
     builtin_interfaces
     diagnostic_msgs
+    geometry_msgs
     std_msgs
 )
 

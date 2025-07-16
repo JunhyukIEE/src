@@ -1,17 +1,22 @@
+// Copyright 2024 TIER IV, Inc.
+
 #include "velodyne_ros_decoder_test_vlp16.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
+#include <iostream>
 #include <memory>
+#include <string>
 
 std::shared_ptr<nebula::ros::VelodyneRosDecoderTest> velodyne_driver;
 
 TEST(TestDecoder, TestPcd)
 {
   std::cout << "TEST(TestDecoder, TestPcd)" << std::endl;
-  velodyne_driver->ReadBag();
+  velodyne_driver->read_bag();
 }
 
 int main(int argc, char * argv[])
@@ -30,7 +35,7 @@ int main(int argc, char * argv[])
   exec.add_node(velodyne_driver->get_node_base_interface());
 
   RCLCPP_INFO_STREAM(rclcpp::get_logger(node_name), "Get Status");
-  nebula::Status driver_status = velodyne_driver->GetStatus();
+  nebula::Status driver_status = velodyne_driver->get_status();
   int result = 0;
   if (driver_status == nebula::Status::OK) {
     RCLCPP_INFO_STREAM(rclcpp::get_logger(node_name), "Reading Started");

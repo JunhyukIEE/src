@@ -1,16 +1,30 @@
+// Copyright 2024 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #ifndef NEBULA_COMMON_H
 #define NEBULA_COMMON_H
 
 #include <nebula_common/point_types.hpp>
 
-#include <map>
+#include <boost/tokenizer.hpp>
+
+#include <algorithm>
 #include <ostream>
 #include <string>
 #include <vector>
 
-namespace nebula
-{
-namespace drivers
+namespace nebula::drivers
 {
 /// @brief Coordinate mode for Velodyne's setting (need to check)
 enum class CoordinateMode { UNKNOWN = 0, CARTESIAN, SPHERICAL, CYLINDRICAL };
@@ -56,7 +70,7 @@ enum class ReturnMode : uint8_t {
 /// @brief Convert ReturnMode enum to ReturnType enum for Pandar AT, XTM (temporary, not used)
 /// @param mode
 /// @return Corresponding mode
-inline ReturnType ReturnModeToReturnType(const ReturnMode & mode)
+inline ReturnType return_mode_to_return_type(const ReturnMode & mode)
 {
   switch (mode) {
     case ReturnMode::SINGLE_STRONGEST:
@@ -124,7 +138,7 @@ inline ReturnType ReturnModeToReturnType(const ReturnMode & mode)
 /// @brief Convert ReturnMode enum to integer
 /// @param mode
 /// @return Corresponding number
-inline uint8_t ReturnModeToInt(const ReturnMode & mode)
+inline uint8_t return_mode_to_int(const ReturnMode & mode)
 {
   switch (mode) {
     case ReturnMode::SINGLE_STRONGEST:
@@ -312,6 +326,7 @@ enum class SensorModel {
   HESAI_PANDAR40M,
   HESAI_PANDARQT64,
   HESAI_PANDARQT128,
+  HESAI_PANDARXT16,
   HESAI_PANDARXT32,
   HESAI_PANDARXT32M,
   HESAI_PANDARAT128,
@@ -324,9 +339,10 @@ enum class SensorModel {
   VELODYNE_HDL32,
   VELODYNE_VLP16,
   ROBOSENSE_HELIOS,
-  ROBOSENSE_BPEARL,
   ROBOSENSE_BPEARL_V3,
   ROBOSENSE_BPEARL_V4,
+  CONTINENTAL_ARS548,
+  CONTINENTAL_SRR520
 };
 
 /// @brief not used?
@@ -340,6 +356,12 @@ enum class datatype {
   FLOAT32 = 7,
   FLOAT64 = 8
 };
+
+enum class PtpProfile { IEEE_1588v2 = 0, IEEE_802_1AS, IEEE_802_1AS_AUTO, UNKNOWN_PROFILE };
+
+enum class PtpTransportType { UDP_IP = 0, L2, UNKNOWN_TRANSPORT };
+
+enum class PtpSwitchType { NON_TSN = 0, TSN, UNKNOWN_SWITCH };
 
 /// @brief not used?
 struct PointField
@@ -371,6 +393,9 @@ inline std::ostream & operator<<(std::ostream & os, nebula::drivers::SensorModel
       break;
     case SensorModel::HESAI_PANDARQT128:
       os << "PandarQT128";
+      break;
+    case SensorModel::HESAI_PANDARXT16:
+      os << "PandarXT16";
       break;
     case SensorModel::HESAI_PANDARXT32:
       os << "PandarXT32";
@@ -408,14 +433,17 @@ inline std::ostream & operator<<(std::ostream & os, nebula::drivers::SensorModel
     case SensorModel::ROBOSENSE_HELIOS:
       os << "HELIOS";
       break;
-    case SensorModel::ROBOSENSE_BPEARL:
-      os << "BPEARL";
-      break;
     case SensorModel::ROBOSENSE_BPEARL_V3:
       os << "BPEARL V3.0";
       break;
     case SensorModel::ROBOSENSE_BPEARL_V4:
       os << "BPEARL V4.0";
+      break;
+    case SensorModel::CONTINENTAL_ARS548:
+      os << "ARS548";
+      break;
+    case SensorModel::CONTINENTAL_SRR520:
+      os << "SRR520";
       break;
     case SensorModel::UNKNOWN:
       os << "Sensor Unknown";
@@ -428,11 +456,33 @@ inline std::ostream & operator<<(std::ostream & os, nebula::drivers::SensorModel
 struct SensorConfigurationBase
 {
   SensorModel sensor_model;
-  ReturnMode return_mode;
+  std::string frame_id;
+};
+
+/// @brief Base struct for Ethernet-based Sensor configuration
+struct EthernetSensorConfigurationBase : SensorConfigurationBase
+{
   std::string host_ip;
   std::string sensor_ip;
-  std::string frame_id;
   uint16_t data_port;
+};
+
+/// @brief Base struct for CAN-based Sensor configuration
+struct CANSensorConfigurationBase : SensorConfigurationBase
+{
+  std::string interface;
+  float receiver_timeout_sec{};
+  float sender_timeout_sec{};
+  /// @brief Socketcan filters, see the documentation of SocketCanReceiver::CanFilterList for
+  /// details
+  std::string filters{};
+  bool use_bus_time{};
+};
+
+/// @brief Base struct for Lidar configuration
+struct LidarConfigurationBase : EthernetSensorConfigurationBase
+{
+  ReturnMode return_mode;
   uint16_t frequency_ms;
   uint16_t packet_mtu_size;
   CoordinateMode coordinate_mode;
@@ -447,14 +497,53 @@ struct SensorConfigurationBase
 /// @param os
 /// @param arg
 /// @return stream
-inline std::ostream & operator<<(
-  std::ostream & os, nebula::drivers::SensorConfigurationBase const & arg)
+inline std::ostream & operator<<(std::ostream & os, SensorConfigurationBase const & arg)
 {
-  os << "SensorModel: " << arg.sensor_model << ", ReturnMode: " << arg.return_mode
-     << ", HostIP: " << arg.host_ip << ", SensorIP: " << arg.sensor_ip
-     << ", FrameID: " << arg.frame_id << ", DataPort: " << arg.data_port
-     << ", Frequency: " << arg.frequency_ms << ", MTU: " << arg.packet_mtu_size
-     << ", Use sensor time: " << arg.use_sensor_time;
+  os << "Sensor Model: " << arg.sensor_model << '\n';
+  os << "Frame ID: " << arg.frame_id;
+  return os;
+}
+
+/// @brief Convert EthernetSensorConfigurationBase to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(std::ostream & os, EthernetSensorConfigurationBase const & arg)
+{
+  os << (SensorConfigurationBase)(arg) << '\n';
+  os << "Host IP: " << arg.host_ip << '\n';
+  os << "Sensor IP: " << arg.sensor_ip << '\n';
+  os << "Data Port: " << arg.data_port;
+  return os;
+}
+
+/// @brief Convert CANSensorConfigurationBase to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(std::ostream & os, CANSensorConfigurationBase const & arg)
+{
+  os << (SensorConfigurationBase)(arg) << '\n';
+  os << "Interface: " << arg.interface << '\n';
+  os << "Receiver Timeout (s): " << arg.receiver_timeout_sec << '\n';
+  os << "Sender Timeout (s): " << arg.sender_timeout_sec << '\n';
+  os << "Filters: " << arg.filters << '\n';
+  os << "Use Bus Time: " << arg.use_bus_time;
+  return os;
+}
+
+/// @brief Convert LidarConfigurationBase to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(
+  std::ostream & os, nebula::drivers::LidarConfigurationBase const & arg)
+{
+  os << (EthernetSensorConfigurationBase)(arg) << '\n';
+  os << "Return Mode: " << arg.return_mode << '\n';
+  os << "Frequency: " << arg.frequency_ms << '\n';
+  os << "MTU: " << arg.packet_mtu_size << '\n';
+  os << "Use Sensor Time: " << arg.use_sensor_time;
   return os;
 }
 
@@ -467,12 +556,13 @@ struct CalibrationConfigurationBase
 /// @brief Convert sensor name to SensorModel enum (Upper and lower case letters must match)
 /// @param sensor_model Sensor name (Upper and lower case letters must match)
 /// @return Corresponding SensorModel
-inline SensorModel SensorModelFromString(const std::string & sensor_model)
+inline SensorModel sensor_model_from_string(const std::string & sensor_model)
 {
   // Hesai
   if (sensor_model == "Pandar64") return SensorModel::HESAI_PANDAR64;
   if (sensor_model == "Pandar40P") return SensorModel::HESAI_PANDAR40P;
   if (sensor_model == "Pandar40M") return SensorModel::HESAI_PANDAR40M;
+  if (sensor_model == "PandarXT16") return SensorModel::HESAI_PANDARXT16;
   if (sensor_model == "PandarXT32") return SensorModel::HESAI_PANDARXT32;
   if (sensor_model == "PandarXT32M") return SensorModel::HESAI_PANDARXT32M;
   if (sensor_model == "PandarAT128") return SensorModel::HESAI_PANDARAT128;
@@ -488,13 +578,16 @@ inline SensorModel SensorModelFromString(const std::string & sensor_model)
   if (sensor_model == "VLP16") return SensorModel::VELODYNE_VLP16;
   // Robosense
   if (sensor_model == "Helios") return SensorModel::ROBOSENSE_HELIOS;
-  if (sensor_model == "Bpearl") return SensorModel::ROBOSENSE_BPEARL;
+  if (sensor_model == "Bpearl" || sensor_model == "Bpearl_V4")
+    return SensorModel::ROBOSENSE_BPEARL_V4;
   if (sensor_model == "Bpearl_V3") return SensorModel::ROBOSENSE_BPEARL_V3;
-  if (sensor_model == "Bpearl_V4") return SensorModel::ROBOSENSE_BPEARL_V4;
+  // Continental
+  if (sensor_model == "ARS548") return SensorModel::CONTINENTAL_ARS548;
+  if (sensor_model == "SRR520") return SensorModel::CONTINENTAL_SRR520;
   return SensorModel::UNKNOWN;
 }
 
-inline std::string SensorModelToString(const SensorModel & sensor_model)
+inline std::string sensor_model_to_string(const SensorModel & sensor_model)
 {
   switch (sensor_model) {
     // Hesai
@@ -504,6 +597,8 @@ inline std::string SensorModelToString(const SensorModel & sensor_model)
       return "Pandar40P";
     case SensorModel::HESAI_PANDAR40M:
       return "Pandar40M";
+    case SensorModel::HESAI_PANDARXT16:
+      return "PandarXT16";
     case SensorModel::HESAI_PANDARXT32:
       return "PandarXT32";
     case SensorModel::HESAI_PANDARXT32M:
@@ -532,12 +627,15 @@ inline std::string SensorModelToString(const SensorModel & sensor_model)
     // Robosense
     case SensorModel::ROBOSENSE_HELIOS:
       return "Helios";
-    case SensorModel::ROBOSENSE_BPEARL:
-      return "Bpearl";
     case SensorModel::ROBOSENSE_BPEARL_V3:
       return "Bpearl_V3";
     case SensorModel::ROBOSENSE_BPEARL_V4:
       return "Bpearl_V4";
+    // Continental
+    case SensorModel::CONTINENTAL_ARS548:
+      return "ARS548";
+    case SensorModel::CONTINENTAL_SRR520:
+      return "SRR520";
     default:
       return "UNKNOWN";
   }
@@ -546,7 +644,7 @@ inline std::string SensorModelToString(const SensorModel & sensor_model)
 /// @brief Convert return mode name to ReturnMode enum
 /// @param return_mode Return mode name (Upper and lower case letters must match)
 /// @return Corresponding ReturnMode
-inline ReturnMode ReturnModeFromString(const std::string & return_mode)
+inline ReturnMode return_mode_from_string(const std::string & return_mode)
 {
   if (return_mode == "SingleFirst") return ReturnMode::SINGLE_FIRST;
   if (return_mode == "SingleStrongest") return ReturnMode::SINGLE_STRONGEST;
@@ -556,13 +654,125 @@ inline ReturnMode ReturnModeFromString(const std::string & return_mode)
   return ReturnMode::UNKNOWN;
 }
 
-[[maybe_unused]] pcl::PointCloud<PointXYZIR>::Ptr convertPointXYZIRADTToPointXYZIR(
+/// @brief Converts String to PTP Profile
+/// @param ptp_profile Profile as String
+/// @return Corresponding PtpProfile
+inline PtpProfile ptp_profile_from_string(const std::string & ptp_profile)
+{
+  // Hesai
+  auto tmp_str = ptp_profile;
+  std::transform(tmp_str.begin(), tmp_str.end(), tmp_str.begin(), [](unsigned char c) {
+    return std::tolower(c);
+  });
+  if (tmp_str == "1588v2") return PtpProfile::IEEE_1588v2;
+  if (tmp_str == "802.1as") return PtpProfile::IEEE_802_1AS;
+  if (tmp_str == "automotive") return PtpProfile::IEEE_802_1AS_AUTO;
+
+  return PtpProfile::UNKNOWN_PROFILE;
+}
+
+/// @brief Convert PtpProfile enum to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(std::ostream & os, nebula::drivers::PtpProfile const & arg)
+{
+  switch (arg) {
+    case PtpProfile::IEEE_1588v2:
+      os << "IEEE_1588v2";
+      break;
+    case PtpProfile::IEEE_802_1AS:
+      os << "IEEE_802.1AS";
+      break;
+    case PtpProfile::IEEE_802_1AS_AUTO:
+      os << "IEEE_802.1AS Automotive";
+      break;
+    case PtpProfile::UNKNOWN_PROFILE:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+/// @brief Converts String to PTP TransportType
+/// @param transport_type Transport as String
+/// @return Corresponding PtpTransportType
+inline PtpTransportType ptp_transport_type_from_string(const std::string & transport_type)
+{
+  // Hesai
+  auto tmp_str = transport_type;
+  std::transform(tmp_str.begin(), tmp_str.end(), tmp_str.begin(), [](unsigned char c) {
+    return std::tolower(c);
+  });
+  if (tmp_str == "udp") return PtpTransportType::UDP_IP;
+  if (tmp_str == "l2") return PtpTransportType::L2;
+
+  return PtpTransportType::UNKNOWN_TRANSPORT;
+}
+
+/// @brief Convert PtpTransportType enum to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(std::ostream & os, nebula::drivers::PtpTransportType const & arg)
+{
+  switch (arg) {
+    case PtpTransportType::UDP_IP:
+      os << "UDP/IP";
+      break;
+    case PtpTransportType::L2:
+      os << "L2";
+      break;
+    case PtpTransportType::UNKNOWN_TRANSPORT:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+/// @brief Converts String to PTP SwitchType
+/// @param switch_type Switch as String
+/// @return Corresponding PtpSwitchType
+inline PtpSwitchType ptp_switch_type_from_string(const std::string & switch_type)
+{
+  // Hesai
+  auto tmp_str = switch_type;
+  std::transform(tmp_str.begin(), tmp_str.end(), tmp_str.begin(), [](unsigned char c) {
+    return std::tolower(c);
+  });
+  if (tmp_str == "tsn") return PtpSwitchType::TSN;
+  if (tmp_str == "non_tsn") return PtpSwitchType::NON_TSN;
+
+  return PtpSwitchType::UNKNOWN_SWITCH;
+}
+
+/// @brief Convert PtpSwitchType enum to string (Overloading the << operator)
+/// @param os
+/// @param arg
+/// @return stream
+inline std::ostream & operator<<(std::ostream & os, nebula::drivers::PtpSwitchType const & arg)
+{
+  switch (arg) {
+    case PtpSwitchType::TSN:
+      os << "TSN";
+      break;
+    case PtpSwitchType::NON_TSN:
+      os << "NON_TSN";
+      break;
+    case PtpSwitchType::UNKNOWN_SWITCH:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+[[maybe_unused]] pcl::PointCloud<PointXYZIR>::Ptr convert_point_xyziradt_to_point_xyzir(
   const pcl::PointCloud<PointXYZIRADT>::ConstPtr & input_pointcloud);
 
-[[maybe_unused]] pcl::PointCloud<PointXYZIR>::Ptr convertPointXYZIRCAEDTToPointXYZIR(
+[[maybe_unused]] pcl::PointCloud<PointXYZIR>::Ptr convert_point_xyzircaedt_to_point_xyzir(
   const pcl::PointCloud<PointXYZIRCAEDT>::ConstPtr & input_pointcloud);
 
-pcl::PointCloud<PointXYZIRADT>::Ptr convertPointXYZIRCAEDTToPointXYZIRADT(
+pcl::PointCloud<PointXYZIRADT>::Ptr convert_point_xyzircaedt_to_point_xyziradt(
   const pcl::PointCloud<PointXYZIRCAEDT>::ConstPtr & input_pointcloud, double stamp);
 
 /// @brief Converts degrees to radians
@@ -580,7 +790,6 @@ static inline float rad2deg(double radians)
 {
   return radians * 180.0 / M_PI;
 }
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers
 
 #endif  // NEBULA_CONFIGURATION_BASE_H

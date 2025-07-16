@@ -1,4 +1,5 @@
 <launch>
+  <arg name="use_control_command_gate" default="false"/>
   <arg name="adapter_output" default="screen"/>
   <arg name="relay_output" default="log"/>
   <arg name="status_pub_hz" default="5.0"/>
@@ -18,7 +19,7 @@
   <arg name="input_gate_mode" default="/control/current_gate_mode"/>
   <arg name="input_mrm_state" default="/system/fail_safe/mrm_state"/>
   <arg name="input_hazard_status" default="/system/emergency/hazard_status"/>
-  <arg name="input_stop_reason" default="/planning/scenario_planning/status/stop_reasons"/>
+  <arg name="input_velocity_factors" default="/api/planning/velocity_factors"/>
   <arg name="input_v2x_command" default="/planning/scenario_planning/status/infrastructure_commands"/>
   <arg name="input_v2x_state" default="/system/v2x/virtual_traffic_light_states"/>
   <arg name="input_diagnostics" default="/diagnostics_agg"/>
@@ -36,7 +37,7 @@
   <arg name="input_nearest_traffic_signal" default="/planning/scenario_planning/lane_driving/behavior_planning/debug/traffic_signal"/>
   <arg name="input_trajectory" default="/planning/scenario_planning/trajectory"/>
   <arg name="input_current_max_velocity" default="/planning/scenario_planning/current_max_velocity"/>
-  <arg name="input_stop_speed_exceeded" default="/planning/scenario_planning/motion_velocity_smoother/stop_speed_exceeded"/>
+  <arg name="input_stop_speed_exceeded" default="/planning/scenario_planning/velocity_smoother/stop_speed_exceeded"/>
   <arg name="input_external_crosswalk_status" default="/planning/scenario_planning/lane_driving/behavior_planning/behavior_velocity_planner/input/external_crosswalk_states"/>
   <arg name="input_external_intersection_status" default="/planning/scenario_planning/lane_driving/behavior_planning/behavior_velocity_planner/input/external_intersection_states"/>
   <arg name="input_expand_stop_range" default="/planning/scenario_planning/lane_driving/motion_planning/obstacle_stop_planner/input/expand_stop_range"/>
@@ -62,7 +63,7 @@
 
   <arg name="node_emergency_stop" default="/control/vehicle_cmd_gate"/>
   <arg name="param_emergency_stop" default="check_external_emergency_heartbeat"/>
-  <arg name="node_max_velocity" default="/planning/scenario_planning/motion_velocity_smoother"/>
+  <arg name="node_max_velocity" default="/planning/scenario_planning/velocity_smoother"/>
   <arg name="param_max_velocity" default="max_velocity"/>
 
   <arg name="set_max_velocity" default="vehicle/put/velocity"/>
@@ -112,7 +113,7 @@
       <remap from="input/gate_mode" to="$(var input_gate_mode)"/>
       <remap from="input/mrm_state" to="$(var input_mrm_state)"/>
       <remap from="input/hazard_status" to="$(var input_hazard_status)"/>
-      <remap from="input/stop_reason" to="$(var input_stop_reason)"/>
+      <remap from="input/velocity_factors" to="$(var input_velocity_factors)"/>
       <remap from="input/v2x_command" to="$(var input_v2x_command)"/>
       <remap from="input/v2x_state" to="$(var input_v2x_state)"/>
       <remap from="input/diagnostics" to="$(var input_diagnostics)"/>
@@ -139,6 +140,7 @@
       <param name="status_pub_hz" value="$(var status_pub_hz)"/>
       <param name="stop_reason_timeout" value="$(var stop_reason_timeout)"/>
       <param name="stop_reason_thresh_dist" value="$(var stop_reason_thresh_dist)"/>
+      <param name="use_control_command_gate" value="$(var use_control_command_gate)"/>
     </node>
   </group>
 

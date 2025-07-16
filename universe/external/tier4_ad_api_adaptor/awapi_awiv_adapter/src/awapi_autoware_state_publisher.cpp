@@ -72,7 +72,7 @@ void AutowareIvAutowareStatePublisher::getAutowareStateInfo(
 }
 
 void AutowareIvAutowareStatePublisher::getControlModeInfo(
-  const autoware_auto_vehicle_msgs::msg::ControlModeReport::ConstSharedPtr & control_mode_ptr,
+  const autoware_vehicle_msgs::msg::ControlModeReport::ConstSharedPtr & control_mode_ptr,
   tier4_api_msgs::msg::AwapiAutowareStatus * status)
 {
   if (!control_mode_ptr) {
@@ -114,7 +114,8 @@ void AutowareIvAutowareStatePublisher::getEmergencyStateInfo(
 }
 
 void AutowareIvAutowareStatePublisher::getCurrentMaxVelInfo(
-  const tier4_planning_msgs::msg::VelocityLimit::ConstSharedPtr & current_max_velocity_ptr,
+  const autoware_internal_planning_msgs::msg::VelocityLimit::ConstSharedPtr &
+    current_max_velocity_ptr,
   tier4_api_msgs::msg::AwapiAutowareStatus * status)
 {
   if (!current_max_velocity_ptr) {
@@ -197,7 +198,7 @@ void AutowareIvAutowareStatePublisher::getDiagInfo(
 void AutowareIvAutowareStatePublisher::getErrorDiagInfo(
   const AutowareInfo & aw_info, tier4_api_msgs::msg::AwapiAutowareStatus * status)
 {
-  using autoware_auto_vehicle_msgs::msg::ControlModeReport;
+  using autoware_vehicle_msgs::msg::ControlModeReport;
   using tier4_system_msgs::msg::AutowareState;
 
   if (!aw_info.autoware_state_ptr) {

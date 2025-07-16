@@ -8,6 +8,7 @@ ament_auto_add_executable(awapi_awiv_adapter
   src/awapi_awiv_adapter_node.cpp
   src/awapi_awiv_adapter_core.cpp
   src/awapi_vehicle_state_publisher.cpp
+  src/awapi_velocity_factor_converter.cpp
   src/awapi_autoware_state_publisher.cpp
   src/awapi_stop_reason_aggregator.cpp
   src/awapi_v2x_aggregator.cpp
@@ -16,5 +17,8 @@ ament_auto_add_executable(awapi_awiv_adapter
   src/awapi_max_velocity_publisher.cpp
   src/awapi_autoware_util.cpp
 )
+
+find_package(glog REQUIRED)
+target_link_libraries(awapi_awiv_adapter glog::glog)
 
 ament_auto_package(INSTALL_TO_SHARE launch)

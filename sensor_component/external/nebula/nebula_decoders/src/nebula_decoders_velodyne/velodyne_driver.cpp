@@ -1,21 +1,24 @@
+// Copyright 2024 TIER IV, Inc.
+
 #include "nebula_decoders/nebula_decoders_velodyne/velodyne_driver.hpp"
 
 #include "nebula_decoders/nebula_decoders_velodyne/decoders/vlp16_decoder.hpp"
 #include "nebula_decoders/nebula_decoders_velodyne/decoders/vlp32_decoder.hpp"
 #include "nebula_decoders/nebula_decoders_velodyne/decoders/vls128_decoder.hpp"
 
-namespace nebula
-{
-namespace drivers
+#include <memory>
+#include <tuple>
+#include <vector>
+
+namespace nebula::drivers
 {
 VelodyneDriver::VelodyneDriver(
-  const std::shared_ptr<drivers::VelodyneSensorConfiguration> & sensor_configuration,
-  const std::shared_ptr<drivers::VelodyneCalibrationConfiguration> & calibration_configuration)
+  const std::shared_ptr<const drivers::VelodyneSensorConfiguration> & sensor_configuration,
+  const std::shared_ptr<const drivers::VelodyneCalibrationConfiguration> &
+    calibration_configuration)
 {
   // initialize proper parser from cloud config's model and echo mode
   driver_status_ = nebula::Status::OK;
-  std::cout << "sensor_configuration->sensor_model=" << sensor_configuration->sensor_model
-            << std::endl;
   switch (sensor_configuration->sensor_model) {
     case SensorModel::UNKNOWN:
       driver_status_ = nebula::Status::INVALID_SENSOR_MODEL;
@@ -40,30 +43,35 @@ VelodyneDriver::VelodyneDriver(
   }
 }
 
-Status VelodyneDriver::SetCalibrationConfiguration(
+Status VelodyneDriver::set_calibration_configuration(
   const CalibrationConfigurationBase & calibration_configuration)
 {
   throw std::runtime_error(
-    "SetCalibrationConfiguration. Not yet implemented (" +
+    "set_calibration_configuration. Not yet implemented (" +
     calibration_configuration.calibration_file + ")");
 }
 
-std::tuple<drivers::NebulaPointCloudPtr, double> VelodyneDriver::ConvertScanToPointcloud(
-  const std::shared_ptr<velodyne_msgs::msg::VelodyneScan> & velodyne_scan)
+std::tuple<drivers::NebulaPointCloudPtr, double> VelodyneDriver::parse_cloud_packet(
+  const std::vector<uint8_t> & packet, double packet_seconds)
 {
   std::tuple<drivers::NebulaPointCloudPtr, double> pointcloud;
-  if (driver_status_ == nebula::Status::OK) {
-    scan_decoder_->reset_pointcloud(velodyne_scan->packets.size());
-    for (auto & packet : velodyne_scan->packets) {
-      scan_decoder_->unpack(packet);
-    }
-    pointcloud = scan_decoder_->get_pointcloud();
-  } else {
-    std::cout << "not ok driver_status_ = " << driver_status_ << std::endl;
+
+  if (driver_status_ != nebula::Status::OK) {
+    auto logger = rclcpp::get_logger("VelodyneDriver");
+    RCLCPP_ERROR(logger, "Driver not OK.");
+    return pointcloud;
   }
+
+  scan_decoder_->unpack(packet, packet_seconds);
+  if (scan_decoder_->has_scanned()) {
+    pointcloud = scan_decoder_->get_pointcloud();
+  }
+
   return pointcloud;
 }
-Status VelodyneDriver::GetStatus() { return driver_status_; }
+Status VelodyneDriver::get_status()
+{
+  return driver_status_;
+}
 
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers

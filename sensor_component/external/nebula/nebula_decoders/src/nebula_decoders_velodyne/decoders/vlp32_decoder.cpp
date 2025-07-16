@@ -1,17 +1,23 @@
+// Copyright 2024 TIER IV, Inc.
+
 #include "nebula_decoders/nebula_decoders_velodyne/decoders/vlp32_decoder.hpp"
 
+#include <angles/angles.h>
+
 #include <cmath>
+#include <memory>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 namespace nebula
 {
-namespace drivers
-{
-namespace vlp32
+namespace drivers::vlp32
 {
 Vlp32Decoder::Vlp32Decoder(
-  const std::shared_ptr<drivers::VelodyneSensorConfiguration> & sensor_configuration,
-  const std::shared_ptr<drivers::VelodyneCalibrationConfiguration> & calibration_configuration)
+  const std::shared_ptr<const drivers::VelodyneSensorConfiguration> & sensor_configuration,
+  const std::shared_ptr<const drivers::VelodyneCalibrationConfiguration> &
+    calibration_configuration)
 {
   sensor_configuration_ = sensor_configuration;
   calibration_configuration_ = calibration_configuration;
@@ -22,8 +28,8 @@ Vlp32Decoder::Vlp32Decoder(
   overflow_pc_.reset(new NebulaPointCloud);
 
   // Set up cached values for sin and cos of all the possible headings
-  for (uint16_t rot_index = 0; rot_index < ROTATION_MAX_UNITS; ++rot_index) {
-    float rotation = angles::from_degrees(ROTATION_RESOLUTION * rot_index);
+  for (uint16_t rot_index = 0; rot_index < g_rotation_max_units; ++rot_index) {
+    float rotation = angles::from_degrees(g_rotation_resolution * rot_index);
     rotation_radians_[rot_index] = rotation;
     cos_rot_table_[rot_index] = cosf(rotation);
     sin_rot_table_[rot_index] = sinf(rotation);
@@ -31,42 +37,40 @@ Vlp32Decoder::Vlp32Decoder(
   phase_ = (uint16_t)round(sensor_configuration_->scan_phase * 100);
 
   timing_offsets_.resize(12);
-  for (size_t i=0; i < timing_offsets_.size(); ++i){
+  for (size_t i = 0; i < timing_offsets_.size(); ++i) {
     timing_offsets_[i].resize(32);
   }
   // constants
-  double full_firing_cycle = 55.296 * 1e-6; // seconds
-  double single_firing = 2.304 * 1e-6; // seconds
+  double full_firing_cycle = 55.296 * 1e-6;  // seconds
+  double single_firing = 2.304 * 1e-6;       // seconds
   double dataBlockIndex, dataPointIndex;
   bool dual_mode = sensor_configuration_->return_mode == ReturnMode::DUAL;
   // compute timing offsets
-  for (size_t x = 0; x < timing_offsets_.size(); ++x){
-    for (size_t y = 0; y < timing_offsets_[x].size(); ++y){
-      if (dual_mode){
+  for (size_t x = 0; x < timing_offsets_.size(); ++x) {
+    for (size_t y = 0; y < timing_offsets_[x].size(); ++y) {
+      if (dual_mode) {
         dataBlockIndex = x / 2;
-      }
-      else{
+      } else {
         dataBlockIndex = x;
       }
       dataPointIndex = y / 2;
-      timing_offsets_[x][y] = (full_firing_cycle * dataBlockIndex) + (single_firing * dataPointIndex);
+      timing_offsets_[x][y] =
+        (full_firing_cycle * dataBlockIndex) + (single_firing * dataPointIndex);
     }
   }
 }
-
-bool Vlp32Decoder::hasScanned() { return has_scanned_; }
 
 std::tuple<drivers::NebulaPointCloudPtr, double> Vlp32Decoder::get_pointcloud()
 {
   double phase = angles::from_degrees(sensor_configuration_->scan_phase);
   if (!scan_pc_->points.empty()) {
     auto current_azimuth = scan_pc_->points.back().azimuth;
-    auto phase_diff = (2*M_PI + current_azimuth - phase);
+    auto phase_diff = (2 * M_PI + current_azimuth - phase);
     while (phase_diff < M_PI_2 && !scan_pc_->points.empty()) {
       overflow_pc_->points.push_back(scan_pc_->points.back());
       scan_pc_->points.pop_back();
       current_azimuth = scan_pc_->points.back().azimuth;
-      phase_diff = (2*M_PI + current_azimuth - phase);
+      phase_diff = (2 * M_PI + current_azimuth - phase);
     }
     overflow_pc_->width = overflow_pc_->points.size();
     scan_pc_->width = scan_pc_->points.size();
@@ -75,41 +79,104 @@ std::tuple<drivers::NebulaPointCloudPtr, double> Vlp32Decoder::get_pointcloud()
   return std::make_tuple(scan_pc_, scan_timestamp_);
 }
 
-int Vlp32Decoder::pointsPerPacket() { return BLOCKS_PER_PACKET * SCANS_PER_BLOCK; }
-
-void Vlp32Decoder::reset_pointcloud(size_t n_pts)
+int Vlp32Decoder::points_per_packet()
 {
-  //  scan_pc_.reset(new NebulaPointCloud);
-  scan_pc_->points.clear();
-  max_pts_ = n_pts * pointsPerPacket();
-  scan_pc_->points.reserve(max_pts_);
-  reset_overflow();  // transfer existing overflow points to the cleared pointcloud
-  scan_timestamp_ = -1;
+  return g_blocks_per_packet * g_scans_per_block;
 }
 
-void Vlp32Decoder::reset_overflow()
+void Vlp32Decoder::reset_pointcloud(double time_stamp)
 {
-  // Add the overflow buffer points
-  for (size_t i = 0; i < overflow_pc_->points.size(); i++) {
-    scan_pc_->points.emplace_back(overflow_pc_->points[i]);
+  scan_pc_->clear();
+  reset_overflow(time_stamp);  // transfer existing overflow points to the cleared pointcloud
+}
+
+void Vlp32Decoder::reset_overflow(double time_stamp)
+{
+  if (overflow_pc_->points.size() == 0) {
+    scan_timestamp_ = -1;
+    overflow_pc_->points.reserve(max_pts_);
+    return;
   }
+
+  // Compute the absolute time stamp of the last point of the overflow pointcloud
+  const double last_overflow_time_stamp =
+    scan_timestamp_ + 1e-9 * overflow_pc_->points.back().time_stamp;
+
+  // Detect cases where there is an unacceptable time difference between the last overflow point and
+  // the first point of the next packet. In that case, there was probably a packet drop so it is
+  // better to ignore the overflow pointcloud
+  if (time_stamp - last_overflow_time_stamp > 0.05) {
+    scan_timestamp_ = -1;
+    overflow_pc_->points.clear();
+    overflow_pc_->points.reserve(max_pts_);
+    return;
+  }
+
+  // Add the overflow buffer points
+  while (overflow_pc_->points.size() > 0) {
+    auto overflow_point = overflow_pc_->points.back();
+
+    // The overflow points had the stamps from the previous pointcloud. These need to be changed to
+    // be relative to the overflow's packet timestamp
+    double new_timestamp_seconds =
+      scan_timestamp_ + 1e-9 * overflow_point.time_stamp - last_block_timestamp_;
+    overflow_point.time_stamp =
+      static_cast<uint32_t>(new_timestamp_seconds < 0.0 ? 0.0 : 1e9 * new_timestamp_seconds);
+
+    scan_pc_->points.emplace_back(overflow_point);
+    overflow_pc_->points.pop_back();
+  }
+
+  // When there is overflow, the timestamp becomes the overflow packets' one
+  scan_timestamp_ = last_block_timestamp_;
   overflow_pc_->points.clear();
   overflow_pc_->points.reserve(max_pts_);
 }
 
-void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_packet)
+void Vlp32Decoder::unpack(const std::vector<uint8_t> & packet, double packet_seconds)
 {
-  const raw_packet_t * raw = (const raw_packet_t *)&velodyne_packet.data[0];
-  uint8_t return_mode = velodyne_packet.data[RETURN_MODE_INDEX];
-  const bool dual_return = (return_mode == RETURN_MODE_DUAL);
+  check_and_handle_scan_complete(packet, packet_seconds, phase_);
 
-  for (int i = 0; i < BLOCKS_PER_PACKET; i++) {
+  const raw_packet_t * raw = (const raw_packet_t *)packet.data();
+  float last_azimuth_diff = 0;
+  uint16_t azimuth_next;
+  uint8_t return_mode = packet[g_return_mode_index];
+  const bool dual_return = (return_mode == g_return_mode_dual);
+
+  for (uint i = 0; i < g_blocks_per_packet; i++) {
     int bank_origin = 0;
-    if (raw->blocks[i].header == LOWER_BANK) {
+    if (raw->blocks[i].header == g_lower_bank) {
       // lower bank lasers are [32..63]
       bank_origin = 32;
     }
-    for (int j = 0, k = 0; j < SCANS_PER_BLOCK; j++, k += RAW_SCAN_SIZE) {
+    float azimuth_diff;
+    uint16_t azimuth;
+
+    // Calculate difference between current and next block's azimuth angle.
+    if (i == 0) {
+      azimuth = raw->blocks[i].rotation;
+    } else {
+      azimuth = azimuth_next;
+    }
+    if (i < static_cast<uint>(g_blocks_per_packet - (1 + dual_return))) {
+      // Get the next block rotation to calculate how far we rotate between blocks
+      azimuth_next = raw->blocks[i + (1 + dual_return)].rotation;
+
+      // Finds the difference between two successive blocks
+      azimuth_diff = static_cast<float>((36000 + azimuth_next - azimuth) % 36000);
+
+      // This is used when the last block is next to predict rotation amount
+      last_azimuth_diff = azimuth_diff;
+    } else {
+      // This makes the assumption the difference between the last block and the next packet is the
+      // same as the last to the second to last.
+      // Assumes RPM doesn't change much between blocks.
+      azimuth_diff = (i == static_cast<uint>(g_blocks_per_packet - (4 * dual_return) - 1))
+                       ? 0
+                       : last_azimuth_diff;
+    }
+
+    for (uint j = 0, k = 0; j < g_scans_per_block; j++, k += g_raw_scan_size) {
       float x, y, z;
       uint8_t intensity;
       const uint8_t laser_number = j + bank_origin;
@@ -130,7 +197,7 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
           i % 2 ? raw->blocks[i - 1].data[k + 1] : raw->blocks[i + 1].data[k + 1];
       }
       // Apply timestamp if this is the first new packet in the scan.
-      auto block_timestamp = rclcpp::Time(velodyne_packet.stamp).seconds();
+      auto block_timestamp = packet_seconds;
       if (scan_timestamp_ < 0) {
         scan_timestamp_ = block_timestamp;
       }
@@ -163,13 +230,17 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
             raw->blocks[i].rotation >= sensor_configuration_->cloud_min_angle * 100))) {
           const float cos_vert_angle = corrections.cos_vert_correction;
           const float sin_vert_angle = corrections.sin_vert_correction;
-          const float cos_rot_correction = corrections.cos_rot_correction;
-          const float sin_rot_correction = corrections.sin_rot_correction;
+          float azimuth_corrected_f =
+            azimuth + (azimuth_diff * g_vlp32_channel_duration / g_vlp32_seq_duration * j) -
+            corrections.rot_correction * 180.0 / M_PI * 100;
+          if (azimuth_corrected_f < 0) {
+            azimuth_corrected_f += 36000;
+          }
+          const uint16_t azimuth_corrected =
+            (static_cast<uint16_t>(std::round(azimuth_corrected_f))) % 36000;
 
-          const float cos_rot_angle = cos_rot_table_[block.rotation] * cos_rot_correction +
-                                      sin_rot_table_[block.rotation] * sin_rot_correction;
-          const float sin_rot_angle = sin_rot_table_[block.rotation] * cos_rot_correction -
-                                      cos_rot_table_[block.rotation] * sin_rot_correction;
+          const float cos_rot_angle = cos_rot_table_[azimuth_corrected];
+          const float sin_rot_angle = sin_rot_table_[azimuth_corrected];
 
           const float horiz_offset = corrections.horiz_offset_correction;
           const float vert_offset = corrections.vert_offset_correction;
@@ -244,6 +315,8 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
 
           intensity = raw->blocks[i].data[k + 2];
 
+          last_block_timestamp_ = block_timestamp;
+
           const float focal_offset = 256 * (1 - corrections.focal_distance / 13100) *
                                      (1 - corrections.focal_distance / 13100);
           const float focal_slope = corrections.focal_slope;
@@ -257,7 +330,7 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
 
           nebula::drivers::ReturnType return_type;
           switch (return_mode) {
-            case RETURN_MODE_DUAL:
+            case g_return_mode_dual:
               if (
                 (other_return.bytes[0] == 0 && other_return.bytes[1] == 0) ||
                 (other_return.bytes[0] == current_return.bytes[0] &&
@@ -284,10 +357,10 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
                 }
               }
               break;
-            case RETURN_MODE_STRONGEST:
+            case g_return_mode_strongest:
               return_type = drivers::ReturnType::STRONGEST;
               break;
-            case RETURN_MODE_LAST:
+            case g_return_mode_last:
               return_type = drivers::ReturnType::LAST;
               break;
             default:
@@ -302,9 +375,8 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
           current_point.azimuth = rotation_radians_[block.rotation];
           current_point.elevation = sin_vert_angle;
           auto point_ts = block_timestamp - scan_timestamp_ + point_time_offset;
-          if (point_ts < 0)
-            point_ts = 0;
-          current_point.time_stamp = static_cast<uint32_t>(point_ts*1e9);
+          if (point_ts < 0) point_ts = 0;
+          current_point.time_stamp = static_cast<uint32_t>(point_ts * 1e9);
           current_point.distance = distance;
           current_point.intensity = intensity;
           scan_pc_->points.emplace_back(current_point);
@@ -314,12 +386,11 @@ void Vlp32Decoder::unpack(const velodyne_msgs::msg::VelodynePacket & velodyne_pa
   }
 }
 
-bool Vlp32Decoder::parsePacket(
+bool Vlp32Decoder::parse_packet(
   [[maybe_unused]] const velodyne_msgs::msg::VelodynePacket & velodyne_packet)
 {
   return 0;
 }
 
-}  // namespace vlp32
-}  // namespace drivers
+}  // namespace drivers::vlp32
 }  // namespace nebula

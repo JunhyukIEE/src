@@ -15,28 +15,24 @@
 #ifndef NEBULA_HesaiRosOfflineExtractSample_H
 #define NEBULA_HesaiRosOfflineExtractSample_H
 
-#include "nebula_common/hesai/hesai_common.hpp"
-#include "nebula_common/nebula_common.hpp"
-#include "nebula_common/nebula_status.hpp"
-#include "nebula_decoders/nebula_decoders_hesai/hesai_driver.hpp"
-#include "nebula_ros/common/nebula_driver_ros_wrapper_base.hpp"
-
 #include <diagnostic_updater/diagnostic_updater.hpp>
+#include <nebula_common/hesai/hesai_common.hpp>
+#include <nebula_common/nebula_common.hpp>
+#include <nebula_common/nebula_status.hpp>
+#include <nebula_decoders/nebula_decoders_hesai/hesai_driver.hpp>
+#include <nebula_ros/common/parameter_descriptors.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp_components/register_node_macro.hpp>
 
-#include "pandar_msgs/msg/pandar_packet.hpp"
-#include "pandar_msgs/msg/pandar_scan.hpp"
+#include <pandar_msgs/msg/pandar_packet.hpp>
+#include <pandar_msgs/msg/pandar_scan.hpp>
 
 #include <memory>
 #include <string>
 
-namespace nebula
-{
-namespace ros
+namespace nebula::ros
 {
 /// @brief Offline hesai driver usage example (Output PCD data)
-class HesaiRosOfflineExtractSample final : public rclcpp::Node, NebulaDriverRosWrapperBase
+class HesaiRosOfflineExtractSample final : public rclcpp::Node
 {
   std::shared_ptr<drivers::HesaiDriver> driver_ptr_;
   Status wrapper_status_;
@@ -49,26 +45,16 @@ class HesaiRosOfflineExtractSample final : public rclcpp::Node, NebulaDriverRosW
   /// @param sensor_configuration SensorConfiguration for this driver
   /// @param calibration_configuration CalibrationConfiguration for this driver
   /// @return Resulting status
-  Status InitializeDriver(
+  Status initialize_driver(
     std::shared_ptr<drivers::SensorConfigurationBase> sensor_configuration,
-    std::shared_ptr<drivers::CalibrationConfigurationBase> calibration_configuration) override;
-
-  /// @brief Initializing ros wrapper for AT
-  /// @param sensor_configuration SensorConfiguration for this driver
-  /// @param calibration_configuration CalibrationConfiguration for this driver
-  /// @param correction_configuration CorrectionConfiguration for this driver
-  /// @return Resulting status
-  Status InitializeDriver(
-    std::shared_ptr<drivers::SensorConfigurationBase> sensor_configuration,
-    std::shared_ptr<drivers::CalibrationConfigurationBase> calibration_configuration,
-    std::shared_ptr<drivers::HesaiCorrection> correction_configuration);
+    std::shared_ptr<drivers::HesaiCalibrationConfigurationBase> calibration_configuration);
 
   /// @brief Get configurations from ros parameters
   /// @param sensor_configuration Output of SensorConfiguration
   /// @param calibration_configuration Output of CalibrationConfiguration
   /// @param correction_configuration Output of CorrectionConfiguration (for AT)
   /// @return Resulting status
-  Status GetParameters(
+  Status get_parameters(
     drivers::HesaiSensorConfiguration & sensor_configuration,
     drivers::HesaiCalibrationConfiguration & calibration_configuration,
     drivers::HesaiCorrection & correction_configuration);
@@ -76,7 +62,7 @@ class HesaiRosOfflineExtractSample final : public rclcpp::Node, NebulaDriverRosW
   /// @brief Convert seconds to chrono::nanoseconds
   /// @param seconds
   /// @return chrono::nanoseconds
-  static inline std::chrono::nanoseconds SecondsToChronoNanoSeconds(const double seconds)
+  static inline std::chrono::nanoseconds seconds_to_chrono_nano_seconds(const double seconds)
   {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
       std::chrono::duration<double>(seconds));
@@ -88,21 +74,20 @@ public:
 
   /// @brief Get current status of this driver
   /// @return Current status
-  Status GetStatus();
+  Status get_status();
 
   /// @brief Read the specified bag file and output point clouds to PCD files
-  Status ReadBag();
+  Status read_bag();
 
 private:
-  std::string bag_path;
-  std::string storage_id;
-  std::string out_path;
-  std::string format;
-  std::string target_topic;
-  std::string correction_file_path;
+  std::string bag_path_;
+  std::string storage_id_;
+  std::string out_path_;
+  std::string format_;
+  std::string target_topic_;
+  std::string correction_file_path_;
 };
 
-}  // namespace ros
-}  // namespace nebula
+}  // namespace nebula::ros
 
 #endif  // NEBULA_HesaiRosOfflineExtractSample_H

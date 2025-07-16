@@ -15,16 +15,11 @@
 #include <yaml-cpp/yaml.h>
 
 #include <cmath>
-#include <fstream>
-#include <iostream>
-#include <limits>
 #include <map>
 #include <string>
 #include <vector>
 
-namespace nebula
-{
-namespace drivers
+namespace nebula::drivers
 {
 struct VelodyneLaserCorrection
 {
@@ -59,15 +54,10 @@ public:
   std::vector<VelodyneLaserCorrection> laser_corrections;
   int num_lasers{};
   bool initialized;
-  bool ros_info;
 
 public:
-  explicit VelodyneCalibration(bool info = true)
-  : distance_resolution_m(0.002f), initialized(false), ros_info(info)
-  {
-  }
-  explicit VelodyneCalibration(const std::string & calibration_file, bool info = true)
-  : distance_resolution_m(0.002f), ros_info(info)
+  VelodyneCalibration() : distance_resolution_m(0.002f), initialized(false) {}
+  explicit VelodyneCalibration(const std::string & calibration_file) : distance_resolution_m(0.002f)
   {
     read(calibration_file);
   }
@@ -76,7 +66,6 @@ public:
   void write(const std::string & calibration_file);
 };
 
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers
 
 #endif  // NEBULA_VELODYNE_CALIBRATION_DECODER_H

@@ -16,7 +16,9 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <cstdio>
 #include <memory>
+#include <string>
 
 int main(int argc, char * argv[])
 {
@@ -32,11 +34,10 @@ int main(int argc, char * argv[])
   exec.add_node(hesai_driver->get_node_base_interface());
 
   RCLCPP_INFO_STREAM(rclcpp::get_logger(node_name), "Get Status");
-  nebula::Status driver_status = hesai_driver->GetStatus();
+  nebula::Status driver_status = hesai_driver->get_status();
   if (driver_status == nebula::Status::OK) {
     RCLCPP_INFO_STREAM(rclcpp::get_logger(node_name), "Reading Started");
-    driver_status = hesai_driver->ReadBag();
-    //    exec.spin();
+    driver_status = hesai_driver->read_bag();
   } else {
     RCLCPP_ERROR_STREAM(rclcpp::get_logger(node_name), driver_status);
   }

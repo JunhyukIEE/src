@@ -1,15 +1,31 @@
+// Copyright 2024 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
-#include "nebula_common/nebula_common.hpp"
+#include "nebula_decoders/nebula_decoders_common/point_filters/downsample_mask.hpp"
 #include "nebula_decoders/nebula_decoders_hesai/decoders/angle_corrector_calibration_based.hpp"
 #include "nebula_decoders/nebula_decoders_hesai/decoders/angle_corrector_correction_based.hpp"
 #include "nebula_decoders/nebula_decoders_hesai/decoders/hesai_packet.hpp"
 
-#include <type_traits>
+#include <nebula_common/nebula_common.hpp>
 
-namespace nebula
-{
-namespace drivers
+#include <algorithm>
+#include <type_traits>
+#include <vector>
+
+namespace nebula::drivers
 {
 
 enum class AngleCorrectionType { CALIBRATION, CORRECTION };
@@ -28,7 +44,7 @@ private:
   /// blocks)
   /// @return true if the reflectivity of the unit is strictly greater than that of all other units
   /// in return_units, false otherwise
-  static bool is_strongest(
+  static bool is_strongest_return(
     uint32_t return_idx,
     const std::vector<const typename PacketT::body_t::block_t::unit_t *> & return_units)
   {
@@ -51,7 +67,7 @@ private:
   /// length 2 for dual-return with both units having the same channel but coming from different
   /// blocks)
   /// @return true if the unit is identical to any other one in return_units, false otherwise
-  static bool is_duplicate(
+  static bool is_duplicate_return(
     uint32_t return_idx,
     const std::vector<const typename PacketT::body_t::block_t::unit_t *> & return_units)
   {
@@ -71,12 +87,11 @@ private:
   };
 
 public:
-  typedef PacketT packet_t;
-  typedef typename std::conditional<
+  using packet_t = PacketT;
+  using angle_corrector_t = typename std::conditional<
     (AngleCorrection == AngleCorrectionType::CALIBRATION),
-    AngleCorrectorCalibrationBased<PacketT::N_CHANNELS, PacketT::DEGREE_SUBDIVISIONS>,
-    AngleCorrectorCorrectionBased<PacketT::N_CHANNELS, PacketT::DEGREE_SUBDIVISIONS>>::type
-    angle_corrector_t;
+    AngleCorrectorCalibrationBased<PacketT::n_channels, PacketT::degree_subdivisions>,
+    AngleCorrectorCorrectionBased<PacketT::n_channels, PacketT::degree_subdivisions>>::type;
 
   HesaiSensor() = default;
   virtual ~HesaiSensor() = default;
@@ -87,7 +102,7 @@ public:
   /// @param channel_id The point's channel id
   /// @param packet The packet
   /// @return The relative time offset in nanoseconds
-  virtual int getPacketRelativePointTimeOffset(
+  virtual int get_packet_relative_point_time_offset(
     uint32_t block_id, uint32_t channel_id, const PacketT & packet) = 0;
 
   /// @brief For a given start block index, find the earliest (lowest) relative time offset of any
@@ -96,15 +111,15 @@ public:
   /// @param packet The packet
   /// @return The lowest point time offset (relative to the packet timestamp) of any point in or
   /// after the start block, in nanoseconds
-  int getEarliestPointTimeOffsetForBlock(uint32_t start_block_id, const PacketT & packet)
+  int get_earliest_point_time_offset_for_block(uint32_t start_block_id, const PacketT & packet)
   {
     unsigned int n_returns = hesai_packet::get_n_returns(packet.tail.return_mode);
-    int min_offset_ns = 0xFFFFFFFF;  // MAXINT
+    int min_offset_ns = 0x7FFFFFFF;  // MAXINT (max. positive value)
 
     for (uint32_t block_id = start_block_id; block_id < start_block_id + n_returns; ++block_id) {
-      for (uint32_t channel_id = 0; channel_id < PacketT::N_CHANNELS; ++channel_id) {
-        min_offset_ns =
-          std::min(min_offset_ns, getPacketRelativePointTimeOffset(block_id, channel_id, packet));
+      for (uint32_t channel_id = 0; channel_id < PacketT::n_channels; ++channel_id) {
+        min_offset_ns = std::min(
+          min_offset_ns, get_packet_relative_point_time_offset(block_id, channel_id, packet));
       }
     }
 
@@ -125,11 +140,11 @@ public:
   /// @param return_units The units corresponding to all the returns in the group. These are usually
   /// from the same column across adjascent blocks.
   /// @return The return type of the point
-  virtual ReturnType getReturnType(
+  virtual ReturnType get_return_type(
     hesai_packet::return_mode::ReturnMode return_mode, unsigned int return_idx,
     const std::vector<const typename PacketT::body_t::block_t::unit_t *> & return_units)
   {
-    if (is_duplicate(return_idx, return_units)) {
+    if (is_duplicate_return(return_idx, return_units)) {
       return ReturnType::IDENTICAL;
     }
 
@@ -143,7 +158,7 @@ public:
       case hesai_packet::return_mode::SINGLE_LAST:
         return ReturnType::LAST;
       case hesai_packet::return_mode::DUAL_LAST_STRONGEST:
-        if (is_strongest(return_idx, return_units)) {
+        if (is_strongest_return(return_idx, return_units)) {
           return return_idx == 0 ? ReturnType::LAST_STRONGEST : ReturnType::STRONGEST;
         } else {
           return return_idx == 0 ? ReturnType::LAST : ReturnType::SECONDSTRONGEST;
@@ -153,7 +168,7 @@ public:
       case hesai_packet::return_mode::DUAL_FIRST_LAST:
         return return_idx == 0 ? ReturnType::FIRST : ReturnType::LAST;
       case hesai_packet::return_mode::DUAL_FIRST_STRONGEST:
-        if (is_strongest(return_idx, return_units)) {
+        if (is_strongest_return(return_idx, return_units)) {
           return return_idx == 0 ? ReturnType::FIRST_STRONGEST : ReturnType::STRONGEST;
         } else {
           return return_idx == 0 ? ReturnType::FIRST : ReturnType::SECONDSTRONGEST;
@@ -175,7 +190,11 @@ public:
         return ReturnType::UNKNOWN;
     }
   }
+
+  [[nodiscard]] virtual point_filters::DitherTransform get_dither_transform() const
+  {
+    return point_filters::g_default_dither_transform;
+  }
 };
 
-}  // namespace drivers
-}  // namespace nebula
+}  // namespace nebula::drivers

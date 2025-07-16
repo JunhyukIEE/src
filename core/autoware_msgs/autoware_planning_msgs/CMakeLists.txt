@@ -13,9 +13,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrajectoryPoint.msg"
   "msg/Path.msg"
   "msg/PathPoint.msg"
-  "msg/PathWithLaneId.msg"
-  "msg/PathPointWithLaneId.msg"
+  "msg/RouteState.msg"
+  "srv/ClearRoute.srv"
+  "srv/SetLaneletRoute.srv"
+  "srv/SetWaypointRoute.srv"
   DEPENDENCIES
+    autoware_common_msgs
     geometry_msgs
     std_msgs
     unique_identifier_msgs

@@ -52,7 +52,7 @@ InitialPose::InitialPose(const rclcpp::NodeOptions & options)
     std::bind(&InitialPose::setInitializePoseAuto, this, _1, _2), rmw_qos_profile_services_default,
     group_);
 
-  const auto adaptor = component_interface_utils::NodeAdaptor(this);
+  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
   adaptor.init_cli(cli_localization_initialize_);
 }
 
@@ -60,14 +60,17 @@ void InitialPose::setInitializePose(
   const tier4_external_api_msgs::srv::InitializePose::Request::SharedPtr request,
   const tier4_external_api_msgs::srv::InitializePose::Response::SharedPtr response)
 {
-  const auto req = std::make_shared<localization_interface::Initialize::Service::Request>();
-  req->pose.push_back(request->pose);
-  req->pose.back().pose.covariance = particle_covariance;
+  const auto req = std::make_shared<
+    autoware::component_interface_specs_universe::localization::Initialize::Service::Request>();
+  req->method =
+    autoware::component_interface_specs_universe::localization::Initialize::Service::Request::AUTO;
+  req->pose_with_covariance.push_back(request->pose);
+  req->pose_with_covariance.back().pose.covariance = particle_covariance;
 
   try {
     const auto res = cli_localization_initialize_->call(req, initial_pose_timeout);
     response->status = converter::convert(res->status);
-  } catch (const component_interface_utils::ServiceException & error) {
+  } catch (const autoware::component_interface_utils::ServiceException & error) {
     response->status = tier4_api_utils::response_error(error.what());
   }
 }
@@ -76,12 +79,15 @@ void InitialPose::setInitializePoseAuto(
   const tier4_external_api_msgs::srv::InitializePoseAuto::Request::SharedPtr,
   const tier4_external_api_msgs::srv::InitializePoseAuto::Response::SharedPtr response)
 {
-  const auto req = std::make_shared<localization_interface::Initialize::Service::Request>();
+  const auto req = std::make_shared<
+    autoware::component_interface_specs_universe::localization::Initialize::Service::Request>();
+  req->method =
+    autoware::component_interface_specs_universe::localization::Initialize::Service::Request::AUTO;
 
   try {
     const auto res = cli_localization_initialize_->call(req, initial_pose_timeout);
     response->status = converter::convert(res->status);
-  } catch (const component_interface_utils::ServiceException & error) {
+  } catch (const autoware::component_interface_utils::ServiceException & error) {
     response->status = tier4_api_utils::response_error(error.what());
   }
 }

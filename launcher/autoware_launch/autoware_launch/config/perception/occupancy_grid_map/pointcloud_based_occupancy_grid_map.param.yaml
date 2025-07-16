@@ -8,6 +8,10 @@
       min_height: -1.0
       max_height: 2.0
 
+    # downsample input pointcloud
+    downsample_input_pointcloud: false
+    downsample_voxel_size: 0.125 # [m]
+
     enable_single_frame_mode: false
     # use sensor pointcloud to filter obstacle pointcloud
     filter_obstacle_pointcloud_by_raw_pointcloud: false
@@ -28,3 +32,8 @@
       projection_dz_threshold: 0.01 # [m] for avoiding null division
       obstacle_separation_threshold: 1.0 # [m] fill the interval between obstacles with unknown for this length
       pub_debug_grid: false
+
+    # debug parameters
+    publish_processing_time_detail: false
+    processing_time_tolerance_ms: 50.0 # [ms]
+    processing_time_consecutive_excess_tolerance_ms: 1000.0 # [ms]

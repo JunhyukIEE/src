@@ -43,7 +43,7 @@ Route::Route(const rclcpp::NodeOptions & options) : Node("external_api_route", o
 
   // adapi
   {
-    const auto adaptor = component_interface_utils::NodeAdaptor(this);
+    const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
     adaptor.init_cli(cli_clear_route_);
     adaptor.init_cli(cli_set_route_);
     adaptor.init_sub(sub_get_route_, this, &Route::onRoute);
@@ -62,11 +62,11 @@ void Route::setRoute(
   }
 
   try {
-    const auto req = std::make_shared<autoware_ad_api::routing::SetRoute::Service::Request>();
+    const auto req = std::make_shared<autoware::adapi_specs::routing::SetRoute::Service::Request>();
     *req = converter::convert(*request);
     const auto res = cli_set_route_->call(req);
     response->status = converter::convert(res->status);
-  } catch (const component_interface_utils::ServiceException & error) {
+  } catch (const autoware::component_interface_utils::ServiceException & error) {
     response->status = tier4_api_utils::response_error(error.what());
   }
 }
@@ -76,15 +76,16 @@ void Route::clearRoute(
   const tier4_external_api_msgs::srv::ClearRoute::Response::SharedPtr response)
 {
   try {
-    const auto req = std::make_shared<autoware_ad_api::routing::ClearRoute::Service::Request>();
+    const auto req =
+      std::make_shared<autoware::adapi_specs::routing::ClearRoute::Service::Request>();
     const auto res = cli_clear_route_->call(req);
     response->status = converter::convert(res->status);
-  } catch (const component_interface_utils::ServiceException & error) {
+  } catch (const autoware::component_interface_utils::ServiceException & error) {
     response->status = tier4_api_utils::response_error(error.what());
   }
 }
 
-void Route::onRoute(const autoware_ad_api::routing::Route::Message::ConstSharedPtr message)
+void Route::onRoute(const autoware::adapi_specs::routing::Route::Message::ConstSharedPtr message)
 {
   if (!message->data.empty()) {
     pub_get_route_->publish(converter::convert(*message));
