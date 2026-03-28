@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)" value="true"/>
+  <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)" value="false"/> <!-- 260328 LJH - disable stop check in online mode -->
   <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='logging_simulation'&quot;)" value="false"/>
 
   <!-- NDT Scan Matcher Launch (as pose estimator) -->
