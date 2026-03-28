@@ -16,9 +16,9 @@
       <composable_node pkg="system_monitor" plugin="MemMonitor" name="mem_monitor">
         <param from="$(var mem_monitor_config_file)"/>
       </composable_node>
-      <composable_node pkg="system_monitor" plugin="NetMonitor" name="net_monitor">
+      <!-- <composable_node pkg="system_monitor" plugin="NetMonitor" name="net_monitor">
         <param from="$(var net_monitor_config_file)"/>
-      </composable_node>
+      </composable_node> -->
       <composable_node pkg="system_monitor" plugin="NTPMonitor" name="ntp_monitor">
         <param from="$(var ntp_monitor_config_file)"/>
       </composable_node>
