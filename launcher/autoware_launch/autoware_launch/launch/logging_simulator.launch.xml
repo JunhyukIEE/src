@@ -26,8 +26,8 @@
   <!-- Vehicle -->
   <arg name="launch_vehicle_interface" default="false"/>
   <!-- Map -->
-  <arg name="lanelet2_map_file" default="lanelet2_map.osm" description="lanelet2 map file name"/>
-  <arg name="pointcloud_map_file" default="pointcloud_map.pcd" description="pointcloud map file name"/>
+  <arg name="lanelet2_map_file" default="new_lanelet2_maps.osm" description="lanelet2 map file name"/>
+  <arg name="pointcloud_map_file" default="cu_mgrs_v4.pcd" description="pointcloud map file name"/>
   <!-- System -->
   <arg name="launch_system_monitor" default="false" description="launch system monitor"/>
   <arg name="launch_dummy_diag_publisher" default="false" description="launch dummy diag publisher"/>
@@ -36,20 +36,20 @@
   <!-- Scenario simulation -->
   <arg name="scenario_simulation" default="false" description="use scenario simulation"/>
 
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="os_sensor_to_velodyne_right" 
-   args="2.40998 -0.885587 -1.567 1.93328 3.10138 3.12247 os_sensor velodyne_right"/>
+  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="os_sensor_to_velodyne_right"  -->
+   <!-- args="2.40998 -0.885587 -1.567 1.93328 3.10138 3.12247 os_sensor velodyne_right"/> -->
           
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="os_sensor_to_velodyne_left" 
-   args="2.44644 0.989306 -1.54904 1.18267 0.0167743 -0.0292165 os_sensor velodyne_left"/>
+  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="os_sensor_to_velodyne_left"  -->
+  <!-- args="2.44644 0.989306 -1.54904 1.18267 0.0167743 -0.0292165 os_sensor velodyne_left"/> -->
 
   <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_os_sensor" 
-   args="0.63 0.0 1.735 0.0 0 0 base_link os_sensor"/>
+    args="0.25 0.0 1.2 0.0 0.0 0.0 base_link os_lidar"/>
 
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_imu_adma" 
-    args="0.45 0.0 0.45 0.0 0.0 0.0 base_link imu_link"/>
+  <!-- <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_imu_adma"  -->
+    <!-- args="0.45 0.0 0.45 0.0 0.0 0.0 base_link imu_link"/> -->
 
-   <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_gnss" 
-     args="0.38 0.0 1.695 0.0 0.0 0.0 base_link gnss"/>
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="os_sensor_to_gnss" 
+      args="-0.07 0.0 0.07 0.0 0.0 0.0 os_lidar ubx"/>
 
   <group scoped="false">
     <include file="$(find-pkg-share autoware_launch)/launch/autoware.launch.xml">
@@ -68,7 +68,7 @@
       <arg name="launch_planning" value="$(var planning)"/>
       <arg name="launch_control" value="$(var control)"/>
       <!-- Global parameters -->
-      <arg name="use_sim_time" value="true"/>
+      <arg name="use_sim_time" value="false"/>
       <!-- Pointcloud container -->
       <arg name="use_pointcloud_container" value="$(var use_pointcloud_container)"/>
       <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>

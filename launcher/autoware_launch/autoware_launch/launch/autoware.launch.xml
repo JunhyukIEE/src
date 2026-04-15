@@ -31,8 +31,9 @@
   <arg name="check_external_emergency_heartbeat" default="false"/>
   
   <!-- Map -->
-  <arg name="lanelet2_map_file" default="lanelet2_map.osm" description="lanelet2 map file name"/>
-  <arg name="pointcloud_map_file" default="pointcloud_map.pcd" description="pointcloud map file name"/>  
+  <arg name="lanelet2_map_file" default="new_lanelet2_maps.osm" description="lanelet2 map file name"/>
+  <!-- <arg name="pointcloud_map_file" default="CU.pcd" description="pointcloud map file name"/>   -->
+  <arg name="pointcloud_map_file" default="cu_mgrs_v4.pcd" description="pointcloud map file name"/>  
 
   <!-- System -->
   <arg name="system_run_mode" default="online" description="run mode in system"/>
