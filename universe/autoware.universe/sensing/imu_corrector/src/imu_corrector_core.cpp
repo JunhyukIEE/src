@@ -72,7 +72,8 @@ ImuCorrector::ImuCorrector()
   accel_stddev_imu_link_ = declare_parameter<double>("acceleration_stddev", 10000.0);
 
   imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
-    "input", rclcpp::QoS{1}, std::bind(&ImuCorrector::callbackImu, this, std::placeholders::_1));
+    "input", rclcpp::SensorDataQoS().keep_last(1),
+    std::bind(&ImuCorrector::callbackImu, this, std::placeholders::_1));
 
   imu_pub_ = create_publisher<sensor_msgs::msg::Imu>("output", rclcpp::QoS{10});
 }
