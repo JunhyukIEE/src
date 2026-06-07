@@ -15,7 +15,7 @@
     stopped_state_entry_duration_time: 0.1
     stop_check_duration: 1.0
     nominal:
-      vel_lim: 25.0
+      vel_lim: 40.0
       reference_speed_points: [20.0, 30.0]
       steer_lim: [1.0, 0.8]
       steer_rate_lim: [1.0, 0.8]

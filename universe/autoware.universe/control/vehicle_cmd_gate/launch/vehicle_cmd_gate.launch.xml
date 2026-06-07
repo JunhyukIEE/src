@@ -29,6 +29,7 @@
 
     <remap from="output/vehicle_cmd_emergency" to="/control/command/emergency_cmd"/>
     <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+    <!-- <remap from="output/control_cmd_simulator" to="/control/command/control_cmd_simulator"/> -->
     <remap from="output/gear_cmd" to="/control/command/gear_cmd"/>
     <remap from="output/turn_indicators_cmd" to="/control/command/turn_indicators_cmd"/>
     <remap from="output/hazard_lights_cmd" to="/control/command/hazard_lights_cmd"/>
