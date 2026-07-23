@@ -56,12 +56,13 @@ sensor_kit_base_link:
     pitch: 0.0
     yaw: 0.0
   velodyne_top_base_link:
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    roll: 0.0
-    pitch: 0.0
-    yaw: 1.575
+    x: 0.35723
+    y: 0.01323
+    z: -0.49468
+    roll: 0.00045
+    pitch: -0.01503
+    yaw: 0.03639
+
   velodyne_left_base_link:
     x: 0.0
     y: 0.56362
@@ -77,9 +78,9 @@ sensor_kit_base_link:
     pitch: 0.71
     yaw: -1.580
   gnss_link:
-    x: -0.1
+    x: 0.0
     y: 0.0
-    z: -0.2
+    z: 1.2
     roll: 0.0
     pitch: 0.0
     yaw: 0.0

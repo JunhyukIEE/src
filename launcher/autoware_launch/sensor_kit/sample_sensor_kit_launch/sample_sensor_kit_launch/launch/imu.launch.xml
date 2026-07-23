@@ -13,7 +13,7 @@
       </node>
     </group> -->
 
-    <arg name="imu_raw_name" default="tamagawa/imu_raw"/>
+    <arg name="imu_raw_name" default="/imu/data"/>
     <arg name="imu_corrector_param_file" default="$(find-pkg-share sample_sensor_kit_description)/config/imu_corrector.param.yaml"/>
     <include file="$(find-pkg-share autoware_imu_corrector)/launch/imu_corrector.launch.xml">
       <arg name="input_topic" value="$(var imu_raw_name)"/>
@@ -26,5 +26,12 @@
       <arg name="input_odom" value="/localization/kinematic_state"/>
       <arg name="imu_corrector_param_file" value="$(var imu_corrector_param_file)"/>
     </include>
+
+    <node
+      pkg="tf2_ros"
+      exec="static_transform_publisher"
+      name="imu_static_tf"
+      args="0 0 0 0 0 0 base_link imu"
+    />
   </group>
 </launch>
