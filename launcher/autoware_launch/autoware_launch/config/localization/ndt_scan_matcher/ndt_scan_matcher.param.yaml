@@ -38,7 +38,7 @@
       num_threads: 12
 
       regularization:
-        enable: false
+        enable: true #false 260728LJH use GNSS poser
 
         # Regularization scale factor
         scale_factor: 0.01
