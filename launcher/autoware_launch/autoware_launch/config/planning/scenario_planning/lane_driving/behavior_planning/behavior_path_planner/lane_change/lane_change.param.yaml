@@ -19,14 +19,14 @@
 
       # trajectory generation
       trajectory:
-        max_prepare_duration: 8.0 #4.0  260728LJH short lane change
-        min_prepare_duration: 1.0 #2.0  260728LJH short lane change
-        lateral_jerk: 1.5 #0.5  260728LJH short lane change
-        min_longitudinal_acc: -1.0
-        max_longitudinal_acc: 1.0
+        max_prepare_duration: 1.5 #4.0  260728LJH short lane change
+        min_prepare_duration: 0.5 #2.0  260728LJH short lane change
+        lateral_jerk: 2.5 #0.5  260728LJH short lane change
+        min_longitudinal_acc: -1.5 #-1.0 260729LJH short lane change
+        max_longitudinal_acc: 2.0 #1.0 260729LJH short lane change
         th_prepare_length_diff: 1.0
         th_lane_changing_length_diff: 1.0
-        min_lane_changing_velocity: 0.83 #2.78  260728LJH short lane change
+        min_lane_changing_velocity: 0.5 #2.78  260728LJH short lane change
         lon_acc_sampling_num: 5
         lat_acc_sampling_num: 3
         lane_changing_decel_factor: 0.5
@@ -95,8 +95,8 @@
       # lateral acceleration map
       lateral_acceleration:
         velocity: [0.0, 4.0, 10.0]
-        min_values: [0.4, 0.4, 0.4]
-        max_values: [1.83, 1.83, 1.83] #[0.65, 0.65, 0.65]  260728LJH short lane change
+        min_values: [0.5, 0.5, 0.5] #[0.4, 0.4, 0.4] 260729LJH short lane change
+        max_values: [2.5, 2.5, 2.5] #[0.65, 0.65, 0.65]  260728LJH short lane change
 
       # target object
       target_object:
@@ -144,7 +144,7 @@
         unsafe_hysteresis_threshold: 5      # [/]
         deceleration_sampling_num: 5 # [/]
 
-      lane_change_finish_judge_buffer: 10.0 #2.0  260728LJH short lane change      # [m]
+      lane_change_finish_judge_buffer: 1.0 #2.0  260728LJH short lane change      # [m]
       finish_judge_lateral_threshold: 0.1        # [m]
       finish_judge_lateral_angle_deviation: 1.0 # [deg]
 
