@@ -14,8 +14,6 @@
       - "start_planner"
     slot2:
       - "side_shift"
-      - "avoidance_by_lane_change"
-      - "static_obstacle_avoidance"
       - "lane_change_left"
       - "lane_change_right"
       - "external_request_lane_change_left"

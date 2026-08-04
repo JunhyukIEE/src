@@ -34,7 +34,7 @@
 
       # delay lane change
       delay_lane_change:
-        enable: true
+        enable: false
         check_only_parked_vehicle: false
         min_road_shoulder_width: 0.5  # [m]
         th_parked_vehicle_shift_ratio: 0.6
@@ -104,7 +104,7 @@
         truck: true
         bus: true
         trailer: true
-        unknown: false
+        unknown: true
         bicycle: true
         motorcycle: true
         pedestrian: true
@@ -112,15 +112,15 @@
       # collision check
       collision_check:
         enable_for_prepare_phase:
-          general_lanes: false
+          general_lanes: true
           intersection: true
           turns: true
         prediction_time_resolution: 0.5
         th_incoming_object_yaw: 2.3562 # [rad]
         yaw_diff_threshold: 3.1416 # [rad]
         check_current_lanes: false
-        check_other_lanes: false
-        use_all_predicted_paths: false
+        check_other_lanes: true
+        use_all_predicted_paths: true
 
       # lane change regulations
       regulation:
