@@ -49,12 +49,23 @@ sensor_kit_base_link:
     pitch: 0.0
     yaw: 0.0
   traffic_light_left_camera/camera_link:
+    # Previous sample_sensor_kit calibration (sensor_kit_base_link frame).
     x: 0.909802
     y: 0.033439
     z: -0.686398
     roll: 0.000471
     pitch: -0.276826
     yaw: 0.036267
+    #
+    # MORAI Camera-7 calibration. This transform is expressed relative to
+    # sensor_kit_base_link and composes to the MORAI base_link transform:
+    # translation=(-0.30, 0.00, 1.40), RPY=(0 deg, -20 deg, 0 deg).
+    # x: -1.190070541
+    # y: -0.043052413
+    # z: -0.617963265
+    # roll: 0.000485291
+    # pitch: -0.364092264
+    # yaw: 0.036223094
   velodyne_top_base_link:
     x: 0.35723
     y: 0.01323
