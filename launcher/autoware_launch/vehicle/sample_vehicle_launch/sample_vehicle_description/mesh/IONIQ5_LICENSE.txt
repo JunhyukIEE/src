@@ -1,0 +1,11 @@
+Model Information:
+* title:	Hyundai Ioniq 5 - Lowpoly
+* source:	https://sketchfab.com/3d-models/hyundai-ioniq-5-lowpoly-675e78311e8440d88714bd212cb7a8fb
+* author:	andikapratamaw (https://sketchfab.com/andikapratamaw)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Hyundai Ioniq 5 - Lowpoly" (https://sketchfab.com/3d-models/hyundai-ioniq-5-lowpoly-675e78311e8440d88714bd212cb7a8fb) by andikapratamaw (https://sketchfab.com/andikapratamaw) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
