@@ -8,7 +8,7 @@
     map_frame: "map"
     base_link_frame: "base_link"
     cost_threshold: 45
-    use_radius_search_2d_filter: true
+    use_radius_search_2d_filter: false #true
     enable_debugger: false
 
     # debug parameters

@@ -68,8 +68,8 @@
           longitudinal_margin: 0.0
           lateral_margin:
             soft_margin: 0.5
-            hard_margin: -0.2
-            hard_margin_for_parked_vehicle: -0.2
+            hard_margin: 0.1 #-0.2
+            hard_margin_for_parked_vehicle: 0.0 #-0.2
           max_expand_ratio: 0.0
           envelope_buffer_margin: 0.1
           th_error_eclipse_long_radius : 0.6
@@ -223,7 +223,7 @@
           th_avoid_execution: 0.09                      # [m] FOR DEVELOPER
           th_small_shift_length: 0.101                  # [m] FOR DEVELOPER
           soft_drivable_bound_margin: 0.3               # [m]
-          hard_drivable_bound_margin: 0.3               # [m]
+          hard_drivable_bound_margin: 0.2 #0.3               # [m]
           max_right_shift_length: 5.0                   # [m] FOR DEVELOPER
           max_left_shift_length: 5.0                    # [m] FOR DEVELOPER
           max_deviation_from_lane: 0.2                  # [m]
@@ -233,8 +233,8 @@
           ratio_for_return_shift_approval: 0.5          # [-]
         # avoidance distance parameters
         longitudinal:
-          min_prepare_time: 1.0                         # [s]
-          max_prepare_time: 2.0                         # [s]
+          min_prepare_time: 1.5 #1.0                         # [s]
+          max_prepare_time: 2.5 #2.0                         # [s]
           min_prepare_distance: 1.0                     # [m]
           min_slow_down_speed: 1.38                     # [m/s]
           buf_slow_down_speed: 0.56                     # [m/s] FOR DEVELOPER
@@ -306,7 +306,7 @@
 
         # longitudinal constraints
         longitudinal:
-          nominal_deceleration: -1.0                    # [m/ss]
+          nominal_deceleration: -1.5 #-1.0                    # [m/ss]
           nominal_jerk: 0.5                             # [m/sss]
           max_deceleration: -1.5                        # [m/ss]
           max_jerk: 1.0                                 # [m/sss]

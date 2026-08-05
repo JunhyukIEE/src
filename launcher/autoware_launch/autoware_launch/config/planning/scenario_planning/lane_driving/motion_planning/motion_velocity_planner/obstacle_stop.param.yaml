@@ -40,7 +40,7 @@
 
       obstacle_filtering:
         object_type:
-          pointcloud: false
+          pointcloud: true #false
 
           inside:
             unknown: true
