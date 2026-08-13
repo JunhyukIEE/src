@@ -33,7 +33,10 @@ def create_traffic_light_occlusion_predictor(namespace):
         "input/cloud": LaunchConfiguration("input/cloud"),
         "input/vector_map": LaunchConfiguration("input/vector_map"),
         "input/camera_info": f"/sensing/camera/{namespace}/camera_info",
-        "input/rois": f"/perception/traffic_light_recognition/{namespace}/detection/rois",
+        # Original YOLOX fine ROI input (kept for easy rollback):
+        # "input/rois": f"/perception/traffic_light_recognition/{namespace}/detection/rois",
+        # Keep occlusion processing aligned with the expect ROI classifier bypass.
+        "input/rois": f"/perception/traffic_light_recognition/{namespace}/detection/expect/rois",
         "input/car/traffic_signals": "car/traffic_signals",
         "input/pedestrian/traffic_signals": "pedestrian/traffic_signals",
         "output/traffic_signals": f"/perception/traffic_light_recognition/{namespace}/classification/traffic_signals",

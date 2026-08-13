@@ -69,6 +69,7 @@ def create_traffic_light_node_container(namespace, context, *args, **kwargs):
         "input/camera_info": f"/sensing/camera/{namespace}/camera_info",
         "input/image": f"/sensing/camera/{namespace}/image_raw",
         "output/rois": f"/perception/traffic_light_recognition/{namespace}/detection/rois",
+        "expect/rois": f"/perception/traffic_light_recognition/{namespace}/detection/expect/rois",
         "output/car/traffic_signals": f"/perception/traffic_light_recognition/{namespace}/classification/car/traffic_signals",
         "output/pedestrian/traffic_signals": f"/perception/traffic_light_recognition/{namespace}/classification/pedestrian/traffic_signals",
         "output/traffic_signals": f"/perception/traffic_light_recognition/{namespace}/classification/traffic_signals",
@@ -119,7 +120,10 @@ def create_traffic_light_node_container(namespace, context, *args, **kwargs):
                 ],
                 remappings=[
                     ("~/input/image", camera_arguments["input/image"]),
-                    ("~/input/rois", camera_arguments["output/rois"]),
+                    # Original YOLOX fine ROI input (kept for easy rollback):
+                    # ("~/input/rois", camera_arguments["output/rois"]),
+                    # K-City bypass: classify the tightly projected map-based expect ROI directly.
+                    ("~/input/rois", camera_arguments["expect/rois"]),
                     ("~/output/traffic_signals", "car/traffic_signals"),
                 ],
                 extra_arguments=[
@@ -141,7 +145,10 @@ def create_traffic_light_node_container(namespace, context, *args, **kwargs):
                 ],
                 remappings=[
                     ("~/input/image", camera_arguments["input/image"]),
-                    ("~/input/rois", camera_arguments["output/rois"]),
+                    # Original YOLOX fine ROI input (kept for easy rollback):
+                    # ("~/input/rois", camera_arguments["output/rois"]),
+                    # K-City bypass: classify the tightly projected map-based expect ROI directly.
+                    ("~/input/rois", camera_arguments["expect/rois"]),
                     ("~/output/traffic_signals", "pedestrian/traffic_signals"),
                 ],
                 extra_arguments=[
@@ -162,7 +169,10 @@ def create_traffic_light_node_container(namespace, context, *args, **kwargs):
                 ],
                 remappings=[
                     ("~/input/image", camera_arguments["input/image"]),
-                    ("~/input/rois", camera_arguments["output/rois"]),
+                    # Original YOLOX fine ROI visualization (kept for easy rollback):
+                    # ("~/input/rois", camera_arguments["output/rois"]),
+                    # Show the same expect ROI that is now sent to the classifiers.
+                    ("~/input/rois", camera_arguments["expect/rois"]),
                     ("~/input/rough/rois", "detection/rough/rois"),
                     (
                         "~/input/traffic_signals",
