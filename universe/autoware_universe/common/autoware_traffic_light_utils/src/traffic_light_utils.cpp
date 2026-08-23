@@ -58,12 +58,27 @@ bool isTrafficSignalStop(
   const autoware_perception_msgs::msg::TrafficLightGroup & tl_state)
 {
   const auto & elements = tl_state.elements;
+  const std::string turn_direction = lanelet.attributeOr("turn_direction", "else");
+
+  // MORAI K-city protected-left policy:
+  // A lanelet marked as a left turn must not be released by a green circle alone.
+  // Only an explicit LEFT_ARROW permits the left turn.
+  if (turn_direction == "left") {
+    return !hasTrafficLightShape(
+      elements, autoware_perception_msgs::msg::TrafficLightElement::LEFT_ARROW);
+  }
+
+  // Original generic Autoware behavior (kept for reference):
+  // if (hasTrafficLightCircleColor(
+  //       elements, autoware_perception_msgs::msg::TrafficLightElement::GREEN)) {
+  //   return false;
+  // }
+
+  // Keep the generic green-circle behavior for non-left-turn lanelets.
   if (hasTrafficLightCircleColor(
         elements, autoware_perception_msgs::msg::TrafficLightElement::GREEN)) {
     return false;
   }
-
-  const std::string turn_direction = lanelet.attributeOr("turn_direction", "else");
 
   if (turn_direction == "else") {
     return true;
@@ -74,12 +89,13 @@ bool isTrafficSignalStop(
       elements, autoware_perception_msgs::msg::TrafficLightElement::RIGHT_ARROW)) {
     return false;
   }
-  if (
-    turn_direction == "left" &&
-    hasTrafficLightShape(
-      elements, autoware_perception_msgs::msg::TrafficLightElement::LEFT_ARROW)) {
-    return false;
-  }
+  // Left-turn handling is performed by the protected-left block above.
+  // if (
+  //   turn_direction == "left" &&
+  //   hasTrafficLightShape(
+  //     elements, autoware_perception_msgs::msg::TrafficLightElement::LEFT_ARROW)) {
+  //   return false;
+  // }
   if (
     turn_direction == "straight" &&
     hasTrafficLightShape(elements, autoware_perception_msgs::msg::TrafficLightElement::UP_ARROW)) {
