@@ -31,8 +31,8 @@
   <!-- Control -->
   <arg name="check_external_emergency_heartbeat" default="false"/>
   <!-- Map -->
-  <arg name="lanelet2_map_file" default="K_city_26_test.osm" description="lanelet2 map file name"/>
-  <arg name="pointcloud_map_file" default="K_city_26_test.pcd" description="pointcloud map file name"/>
+  <arg name="lanelet2_map_file" default="avoid.osm" description="lanelet2 map file name"/>
+  <arg name="pointcloud_map_file" default="K_city_26.pcd" description="pointcloud map file name"/>
   <!-- System -->
   <arg name="system_run_mode" default="online" description="run mode in system"/>
   <arg name="launch_system_monitor" default="true" description="launch system monitor"/>
@@ -45,6 +45,7 @@
   <arg name="rviz_respawn" default="true"/>
   <!-- Perception -->
   <arg name="perception_mode" default="lidar" description="select perception mode. camera_lidar_radar_fusion, camera_lidar_fusion, lidar_radar_fusion, lidar, radar"/>
+  <arg name="lidar_detection_model" default="centerpoint" description="lidar detection model type/name"/>
   <arg name="traffic_light_recognition/use_high_accuracy_detection" default="true" description="enable to use high accuracy detection for traffic light recognition"/>
   <!-- Auto mode setting-->
   <arg name="enable_all_modules_auto_mode" default="false" description="enable all module's auto mode"/>
@@ -103,6 +104,7 @@
     <include file="$(find-pkg-share autoware_launch)/launch/components/tier4_perception_component.launch.xml">
       <arg name="data_path" value="$(var data_path)"/>
       <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
+      <arg name="lidar_detection_model" value="$(var lidar_detection_model)"/>
     </include>
   </group>
 

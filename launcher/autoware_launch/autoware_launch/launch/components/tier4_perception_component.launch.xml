@@ -49,6 +49,11 @@
   <arg name="detected_objects_validation_method" default="obstacle_pointcloud" description="options: obstacle_pointcloud, occupancy_grid (must be used with laserscan_based_occupancy_grid_map)"/>
   <arg name="data_path" default="$(env HOME)/autoware_data" description="packages data and artifacts directory path"/>
   <arg name="lidar_detection_model" default="centerpoint" description="If the model name is not declared, the default model in perception.launch.xml will be used"/>
+  <arg
+    name="object_recognition_detection_fusion_sync_param_path"
+    default="$(find-pkg-share autoware_launch)/config/perception/object_recognition/detection/image_projection_based_fusion/fusion_common.param.yaml"
+    description="camera-LiDAR fusion synchronization parameters; per-camera arrays must match image_number"
+  />
 
   <arg name="traffic_light_recognition/camera_namespaces" default="[camera7]" description="choose camera which use for traffic light recognition"/>
   <arg name="traffic_light_recognition/use_high_accuracy_detection" default="true" description="select whether to use high accuracy detector for traffic light recognition"/>
@@ -65,7 +70,10 @@
     <arg name="lidar_detection_model" value="$(var lidar_detection_model)"/>
     <arg name="use_multi_channel_tracker_merger" value="$(var use_multi_channel_tracker_merger)"/>
     <arg name="vehicle_param_file" value="$(find-pkg-share $(var vehicle_model)_description)/config/vehicle_info.param.yaml"/>
-
+  
+    <!-- 260821LJH lidar camera fusion debug-->
+    <arg name="image_raw0" value="/sensing/camera/camera0/image_raw"/>
+    
     <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
     <arg name="occupancy_grid_map_method" value="$(var occupancy_grid_map_method)_occupancy_grid_map"/>
     <arg name="occupancy_grid_map_updater" value="$(var occupancy_grid_map_updater)"/>
@@ -118,7 +126,7 @@
     />
     <arg
       name="object_recognition_detection_fusion_sync_param_path"
-      value="$(find-pkg-share autoware_launch)/config/perception/object_recognition/detection/image_projection_based_fusion/fusion_common.param.yaml"
+      value="$(var object_recognition_detection_fusion_sync_param_path)"
     />
     <arg
       name="object_recognition_detection_roi_cluster_fusion_param_path"

@@ -19,6 +19,8 @@
       - "external_request_lane_change_left"
       - "external_request_lane_change_right"
       - "bidirectional_traffic"
+      - "avoidance_by_lane_change"
+      - "static_obstacle_avoidance"
     slot3:
       - "goal_planner"
     slot4:
