@@ -22,6 +22,7 @@
   </arg>
   <arg name="lidar_detection_model_name">
     <choice value="bevfusion_lidar"/>
+    <choice value="bevfusion_camera_lidar"/>
     <choice value="centerpoint"/>
     <choice value="centerpoint_tiny"/>
     <choice value="centerpoint_sigma"/>
