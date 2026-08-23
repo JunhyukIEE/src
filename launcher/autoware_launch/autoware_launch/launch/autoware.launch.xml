@@ -44,7 +44,8 @@
   <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/$(var rviz_config_name)" description="rviz config path"/>
   <arg name="rviz_respawn" default="true"/>
   <!-- Perception -->
-  <arg name="perception_mode" default="lidar" description="select perception mode. camera_lidar_radar_fusion, camera_lidar_fusion, lidar_radar_fusion, lidar, radar"/>
+  <arg name="perception_mode" default="camera_lidar_fusion" description="select perception mode. camera_lidar_radar_fusion, camera_lidar_fusion, lidar_radar_fusion, lidar, radar"/>
+  <arg name="image_number" default="1" description="number of object detection cameras"/> <!--260823LJH use camera0 for camera fusion-->
   <arg name="lidar_detection_model" default="centerpoint" description="lidar detection model type/name"/>
   <arg name="traffic_light_recognition/use_high_accuracy_detection" default="true" description="enable to use high accuracy detection for traffic light recognition"/>
   <!-- Auto mode setting-->
@@ -105,6 +106,8 @@
       <arg name="data_path" value="$(var data_path)"/>
       <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
       <arg name="lidar_detection_model" value="$(var lidar_detection_model)"/>
+      <arg name="image_number" value="$(var image_number)"/>
+
     </include>
   </group>
 

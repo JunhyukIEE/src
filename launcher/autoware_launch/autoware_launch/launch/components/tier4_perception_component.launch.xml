@@ -49,6 +49,7 @@
   <arg name="detected_objects_validation_method" default="obstacle_pointcloud" description="options: obstacle_pointcloud, occupancy_grid (must be used with laserscan_based_occupancy_grid_map)"/>
   <arg name="data_path" default="$(env HOME)/autoware_data" description="packages data and artifacts directory path"/>
   <arg name="lidar_detection_model" default="centerpoint" description="If the model name is not declared, the default model in perception.launch.xml will be used"/>
+  <arg name="image_number" default="1" description="number of object detection cameras"/>
   <arg
     name="object_recognition_detection_fusion_sync_param_path"
     default="$(find-pkg-share autoware_launch)/config/perception/object_recognition/detection/image_projection_based_fusion/fusion_common.param.yaml"
@@ -72,6 +73,7 @@
     <arg name="vehicle_param_file" value="$(find-pkg-share $(var vehicle_model)_description)/config/vehicle_info.param.yaml"/>
   
     <!-- 260821LJH lidar camera fusion debug-->
+    <arg name="image_number" value="$(var image_number)"/>
     <arg name="image_raw0" value="/sensing/camera/camera0/image_raw"/>
     
     <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
