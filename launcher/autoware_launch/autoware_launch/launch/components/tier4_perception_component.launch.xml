@@ -50,6 +50,7 @@
   <arg name="data_path" default="$(env HOME)/autoware_data" description="packages data and artifacts directory path"/>
   <arg name="lidar_detection_model" default="centerpoint" description="If the model name is not declared, the default model in perception.launch.xml will be used"/>
   <arg name="image_number" default="1" description="number of object detection cameras"/>
+  <arg name="use_yolox_9class" default="true" description="launch the custom camera0 YOLOX detector"/>
   <arg
     name="object_recognition_detection_fusion_sync_param_path"
     default="$(find-pkg-share autoware_launch)/config/perception/object_recognition/detection/image_projection_based_fusion/fusion_common.param.yaml"
@@ -63,6 +64,24 @@
     default="fine_detection"
     description="select high accuracy detector type for traffic light recognition: fine_detection or whole_image_detection"
   />
+
+  <!-- Camera0 custom object detector -->
+  <group if="$(var use_yolox_9class)">
+    <group if="$(eval &quot;'$(var perception_mode)'=='camera_lidar_fusion'&quot;)">
+      <node pkg="autoware_tensorrt_yolox" exec="autoware_tensorrt_yolox_node_exe" name="tensorrt_yolox_9class" output="screen">
+        <remap from="~/in/image" to="/sensing/camera/camera0/image_raw"/>
+        <remap from="~/out/objects" to="/perception/object_recognition/detection/rois0"/>
+        <remap from="~/out/image" to="/perception/yolox_9class/debug/image"/>
+        <param from="$(find-pkg-share autoware_tensorrt_yolox)/config/yolox_tiny.param.yaml"/>
+        <param name="model_path" value="$(var data_path)/tensorrt_yolox/yolox_s_9class_960.onnx"/>
+        <param name="label_path" value="$(find-pkg-share autoware_launch)/config/perception/object_recognition/detection/yolox_9class_autoware_labels.txt"/>
+        <param name="color_map_path" value="not-specified"/>
+        <param name="score_threshold" value="0.30"/>
+        <param name="nms_threshold" value="0.65"/>
+        <param name="build_only" value="false"/>
+      </node>
+    </group>
+  </group>
 
   <include file="$(find-pkg-share tier4_perception_launch)/launch/perception.launch.xml">
     <arg name="data_path" value="$(var data_path)"/>
