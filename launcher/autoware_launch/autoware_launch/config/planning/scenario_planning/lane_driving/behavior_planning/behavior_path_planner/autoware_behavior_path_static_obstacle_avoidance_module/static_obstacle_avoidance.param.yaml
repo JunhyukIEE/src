@@ -68,7 +68,7 @@
           longitudinal_margin: 0.0
           lateral_margin:
             soft_margin: 0.5
-            hard_margin: 0.1 #-0.2
+            hard_margin: 0.3 #-0.2
             hard_margin_for_parked_vehicle: 0.0 #-0.2
           max_expand_ratio: 0.0
           envelope_buffer_margin: 0.1
@@ -220,10 +220,10 @@
       avoidance:
         # avoidance lateral parameters
         lateral:
-          th_avoid_execution: 0.09                      # [m] FOR DEVELOPER
+          th_avoid_execution: 0.8 #0.09                      # [m] FOR DEVELOPER
           th_small_shift_length: 0.101                  # [m] FOR DEVELOPER
-          soft_drivable_bound_margin: 0.3               # [m]
-          hard_drivable_bound_margin: 0.2 #0.3               # [m]
+          soft_drivable_bound_margin: 0.2               # [m]
+          hard_drivable_bound_margin: 0.1 #0.3               # [m]
           max_right_shift_length: 5.0                   # [m] FOR DEVELOPER
           max_left_shift_length: 5.0                    # [m] FOR DEVELOPER
           max_deviation_from_lane: 0.2                  # [m]
