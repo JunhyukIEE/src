@@ -3,7 +3,7 @@
     tolerance: 0.7
     voxel_leaf_size: 0.3
     min_points_number_per_voxel: 1
-    min_cluster_size: 3 #10
+    min_cluster_size: 2 #10
     max_cluster_size: 3000  # this is the maximum number of voxels when clustered
     max_voxel_cluster_for_output: 800  # Maximum number of voxels in a cluster when outputted
     min_voxel_cluster_size_for_filtering: 65  # Clusters below this number of voxels are exempt from per-voxel filtering

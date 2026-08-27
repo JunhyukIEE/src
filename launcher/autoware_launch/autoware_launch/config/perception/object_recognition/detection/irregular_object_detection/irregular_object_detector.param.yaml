@@ -4,9 +4,9 @@
       parameters:
         min_x: 5.0
         max_x: 60.0
-        min_y: -5.0
-        max_y: 5.0
-        max_z: 0.5
+        min_y: -10.0
+        max_y: 10.0
+        max_z: 1.5 #0.5
         min_z: -0.5
         negative: False
         processing_time_threshold_sec: 0.01
@@ -14,20 +14,20 @@
     ground_segmentation:
       plugin: "ground_segmentation::ScanGroundFilterComponent"
       parameters:
-        global_slope_max_angle_deg: 6.0
-        local_slope_max_angle_deg: 25.0
-        split_points_distance_tolerance: 0.2
+        global_slope_max_angle_deg: 5.0
+        local_slope_max_angle_deg: 5.0
+        split_points_distance_tolerance: 0.1
         use_virtual_ground_point: True
         split_height_distance: 0.2
-        non_ground_height_threshold: 0.05
-        grid_size_m: 0.2
-        grid_mode_switch_radius: 20.0
-        gnd_grid_buffer_size: 5
-        detection_range_z_max: 3.2
+        non_ground_height_threshold: 0.2
+        grid_size_m: 0.5
+        grid_mode_switch_radius: 150.0
+        gnd_grid_buffer_size: 4
+        detection_range_z_max: 2.5
         elevation_grid_mode: true
         use_recheck_ground_cluster: true
         recheck_start_distance: 20.0
-        use_lowest_point: false
+        use_lowest_point: true
         low_priority_region_x: -20.0
         center_pcl_shift: 0.0
         radial_divider_angle_deg: 1.0
@@ -39,7 +39,7 @@
         fuse_unknown_only: false #true
         override_class_with_unknown: false
         min_cluster_size: 1 #2
-        max_cluster_size: 100
+        max_cluster_size: 1000 #100
         cluster_2d_tolerance: 0.5
         roi_scale_factor: 2.0
         max_object_size: 2.0
