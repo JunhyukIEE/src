@@ -359,14 +359,14 @@ bool Tracker::isConfident(
 
 bool Tracker::isExpired(
   const rclcpp::Time & now, const AdaptiveThresholdCache & cache,
-  const std::optional<geometry_msgs::msg::Pose> & ego_pose) const
+  const std::optional<geometry_msgs::msg::Pose> & ego_pose,
+  const double expired_time_threshold) const
 {
   // check the number of no measurements
   const double elapsed_time = getElapsedTimeFromLastUpdate(now);
 
   // if the last measurement is too old, the tracker is expired
-  constexpr double EXPIRED_TIME_THRESHOLD = 1.0;  // [sec]
-  if (elapsed_time > EXPIRED_TIME_THRESHOLD) {
+  if (elapsed_time > expired_time_threshold) {
     return true;
   }
 

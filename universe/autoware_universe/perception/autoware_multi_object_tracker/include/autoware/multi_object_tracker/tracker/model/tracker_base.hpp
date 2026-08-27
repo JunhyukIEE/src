@@ -81,7 +81,8 @@ public:
     const std::optional<geometry_msgs::msg::Pose> & ego_pose) const;
   bool isExpired(
     const rclcpp::Time & time, const AdaptiveThresholdCache & cache,
-    const std::optional<geometry_msgs::msg::Pose> & ego_pose) const;
+    const std::optional<geometry_msgs::msg::Pose> & ego_pose,
+    const double expired_time_threshold) const;
   float getKnownObjectProbability() const;
   double getPositionCovarianceDeterminant() const;
 
