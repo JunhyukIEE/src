@@ -14,8 +14,8 @@
         stop_margin_opposing_traffic: 10.0 # Ideal stop-margin from moving opposing obstacle when ego comes to a stop
         effective_deceleration_opposing_traffic: 4.0 # Setting a higher value brings the final stop-margin closer to the ideal value above
 
-        min_on_duration: 0.3  # [s] minimum duration needed before a decision can be triggered
-        min_off_duration: 1.0  # [s] minimum duration needed before a decision can be canceled
+        min_on_duration: 0.8  # [s] minimum duration needed before a decision can be triggered
+        min_off_duration: 0.2  # [s] minimum duration needed before a decision can be canceled
         update_distance_th: 0.5 # [m] minimum distance threshold to update stop point
 
         hold_stop_velocity_threshold: 0.01 # The maximum ego velocity to hold stopping [m/s]
@@ -40,7 +40,7 @@
 
       obstacle_filtering:
         object_type:
-          pointcloud: true #false
+          pointcloud: true
 
           inside:
             unknown: true
@@ -53,7 +53,7 @@
             pedestrian: true
 
           outside:
-            unknown: false
+            unknown: true #false
             car: true
             truck: true
             bus: true
@@ -67,10 +67,10 @@
         obstacle_velocity_threshold_from_stop : 3.5 # stop planning is executed to the obstacle whose velocity is less than this value [m/s]
 
         max_lat_margin: 0.06 # lateral margin between the obstacles except for unknown and ego's footprint
-        max_lat_margin_against_predicted_object_unknown: 0.3 # lateral margin between the unknown obstacles and ego's footprint
+        max_lat_margin_against_predicted_object_unknown: 0.1 # lateral margin between the unknown obstacles and ego's footprint
 
         min_velocity_to_reach_collision_point: 2.0 # minimum velocity margin to calculate time to reach collision [m/s]
-        stop_obstacle_hold_time_threshold : 1.0 # maximum time for holding closest stop obstacle
+        stop_obstacle_hold_time_threshold : 0.3 # maximum time for holding closest stop obstacle
 
         outside_obstacle:
           estimation_time_horizon: 1.0
