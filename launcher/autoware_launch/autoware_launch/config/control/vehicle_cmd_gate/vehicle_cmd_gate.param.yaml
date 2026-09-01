@@ -2,7 +2,7 @@
   ros__parameters:
     update_rate: 10.0
     system_emergency_heartbeat_timeout: 0.5
-    use_emergency_handling: false #true
+    use_emergency_handling: false
     check_external_emergency_heartbeat: $(var check_external_emergency_heartbeat)
     enable_cmd_limit_filter: true
     filter_activated_count_threshold: 5
@@ -13,7 +13,7 @@
     moderate_stop_service_acceleration: -1.5
     stop_check_duration: 1.0
     nominal:
-      vel_lim: 25.0
+      vel_lim: 42.0
       reference_speed_points: [0.1, 0.3, 20.0, 30.0]
       steer_lim: [1.0, 1.0, 1.0, 0.8]
       steer_rate_lim: [1.0, 1.0, 1.0, 0.8]

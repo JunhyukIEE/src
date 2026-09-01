@@ -20,7 +20,7 @@
     # drive state
     kp: 1.0
     ki: 0.1
-    kd: 0.0
+    kd: 0.05
     max_out: 1.0
     min_out: -1.0
     max_p_effort: 1.0
