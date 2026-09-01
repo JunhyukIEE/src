@@ -64,7 +64,7 @@
           th_error_eclipse_long_radius : 0.6
         unknown:
           th_moving_speed: 0.7
-          th_moving_time: 1.0
+          th_moving_time: 0.0
           longitudinal_margin: 0.0
           lateral_margin:
             soft_margin: 0.5
@@ -223,7 +223,7 @@
           th_avoid_execution: 0.09                      # [m] FOR DEVELOPER
           th_small_shift_length: 0.101                  # [m] FOR DEVELOPER
           soft_drivable_bound_margin: 0.2               # [m]
-          hard_drivable_bound_margin: -0.3              # [m]
+          hard_drivable_bound_margin: -0.9              # [m]
           max_right_shift_length: 5.0                   # [m] FOR DEVELOPER
           max_left_shift_length: 5.0                    # [m] FOR DEVELOPER
           max_deviation_from_lane: 0.2                  # [m]
@@ -280,7 +280,7 @@
         #                but there is a possibility that the vehicle can't stop in front of the vehicle.
         # "reliable": insert stop or slow down point with ignoring decel/jerk constraints.
         #             make it possible to increase chance to avoid but uncomfortable deceleration maybe happen.
-        deceleration: "best_effort"                     # [-]
+        deceleration: "best_effort"                        # [-]
         # policy for avoidance lateral margin. select "best_effort" or "reliable".
         # "best_effort": output avoidance path with shorten lateral margin when there is no enough longitudinal
         #                margin to avoid.
@@ -298,17 +298,17 @@
         # lateral constraints
         lateral:
           velocity: [1.39, 4.17, 11.1]                  # [m/s]
-          max_accel_values: [2.5, 2.5, 2.5] #[0.5, 0.5, 0.5]             # [m/ss]
+          max_accel_values: [2.5, 2.5, 2.5]             # [m/ss]
           min_jerk_values:
             avoid: [0.2, 0.2, 0.2]                      # [m/sss]
             return: [0.2, 0.2, 0.2]                     # [m/sss]
-          max_jerk_values: [3.0, 5.0, 5.0] #3.0, 3.0]              # [m/sss]
+          max_jerk_values: [3.0, 5.0, 10.0]             # [m/sss]
 
         # longitudinal constraints
         longitudinal:
-          nominal_deceleration: -1.5 #-1.0                    # [m/ss]
+          nominal_deceleration: -2.0                    # [m/ss]
           nominal_jerk: 0.5                             # [m/sss]
-          max_deceleration: -1.5                        # [m/ss]
+          max_deceleration: -2.5                        # [m/ss]
           max_jerk: 1.0                                 # [m/sss]
           max_acceleration: 0.5                         # [m/ss]
           min_velocity_to_limit_max_acceleration: 2.78  # [m/ss]
