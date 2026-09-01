@@ -16,10 +16,10 @@
     enable_delay_compensation: true
     consider_odometry_uncertainty: false
     enable_unknown_object_velocity_estimation: true
-    enable_unknown_object_motion_output: true
+    enable_unknown_object_motion_output: false
 
     # tracker parameters
-    tracker_lifetime: 3.0 #1.0  # [s]
+    tracker_lifetime: 3.0   # [s]
     min_known_object_removal_iou: 0.1  # [ratio]
     min_unknown_object_removal_iou: 0.001  # [ratio]
     confident_count_threshold:
