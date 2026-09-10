@@ -99,7 +99,6 @@ private:
     sub_gear_cmd_{this, "~/input/gear"};
 
   tier4_system_msgs::msg::OperationModeAvailability::ConstSharedPtr operation_mode_availability_;
-  nav_msgs::msg::Odometry::ConstSharedPtr current_odom_;
 
   void onOperationModeAvailability(
     const tier4_system_msgs::msg::OperationModeAvailability::ConstSharedPtr msg);
@@ -165,7 +164,6 @@ private:
   void handleFailedRequest();
   autoware_adapi_v1_msgs::msg::MrmState::_behavior_type getCurrentMrmBehavior();
   bool isStopped();
-  bool isRoundaboutEntryRegion() const;
   bool isEmergency() const;
   bool isControlModeAutonomous();
   bool isOperationModeAutonomous();

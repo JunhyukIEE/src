@@ -16,7 +16,6 @@
 
 #include <boost/format.hpp>
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -88,18 +87,6 @@ std::vector<VelocityPlanningResult> MotionVelocityPlannerManager::plan_velocitie
     results.push_back(res);
 
     plugin->publish_planning_factor();
-  }
-
-  const bool entry_gate_has_priority = std::any_of(
-    results.begin(), results.end(), [](const auto & result) {
-      return result.suppress_other_obstacle_results;
-    });
-  if (entry_gate_has_priority) {
-    for (auto & result : results) {
-      if (!result.suppress_other_obstacle_results) {
-        clear_longitudinal_constraints(result);
-      }
-    }
   }
   return results;
 }

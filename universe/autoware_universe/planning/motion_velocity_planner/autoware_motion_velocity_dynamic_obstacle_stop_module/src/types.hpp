@@ -49,12 +49,6 @@ struct PlannerParam
   double ego_lateral_offset{};
   double minimum_object_distance_from_ego_trajectory{};
   bool ignore_unavoidable_collisions{};
-  bool use_predicted_crossing_paths{false};
-  double crossing_time_margin{1.0};
-  double crossing_min_angle{0.523599};
-  double approach_velocity{3.3};
-  double approach_distance{30.0};
-  double departure_acceleration{2.0};
 };
 
 struct EgoData
@@ -66,8 +60,6 @@ struct EgoData
   autoware_utils::MultiPolygon2d trajectory_footprints{};
   Rtree rtree{};
   std::optional<geometry_msgs::msg::Pose> earliest_stop_pose{};
-  double velocity{};
-  double prediction_age{};
 };
 
 /// @brief debug data

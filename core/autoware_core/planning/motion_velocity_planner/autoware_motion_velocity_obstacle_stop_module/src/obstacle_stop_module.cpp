@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "obstacle_stop_module.hpp"
-#include <autoware/motion_velocity_planner_common/roundabout_gap.hpp>
 
 #include <autoware/motion_utils/distance/distance.hpp>
 #include <autoware/motion_utils/marker/virtual_wall_marker_creator.hpp>
@@ -179,7 +178,6 @@ void ObstacleStopModule::init(rclcpp::Node & node, const std::string & module_na
   // ros parameters
   ignore_crossing_obstacle_ =
     get_or_declare_parameter<bool>(node, "obstacle_stop.option.ignore_crossing_obstacle");
-  use_roundabout_gap_ = node.declare_parameter<bool>("obstacle_stop.option.use_roundabout_gap", false);
   suppress_sudden_stop_ =
     get_or_declare_parameter<bool>(node, "obstacle_stop.option.suppress_sudden_stop");
 
@@ -245,19 +243,6 @@ VelocityPlanningResult ObstacleStopModule::plan(
   const std::shared_ptr<const PlannerData> planner_data)
 {
   autoware_utils_debug::ScopedTimeTrack st(__func__, *time_keeper_);
-
-  if (
-    use_roundabout_gap_ &&
-    roundabout_gap::in_entry_stop_arm_region(planner_data->current_odometry.pose.pose.position)) {
-    // DynamicObstacleStop owns the single gate stop in this competition-only entry region.
-    prev_stop_obstacles_.clear();
-    visualization_msgs::msg::MarkerArray clear_markers;
-    visualization_msgs::msg::Marker clear_marker;
-    clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-    clear_markers.markers.push_back(clear_marker);
-    virtual_wall_publisher_->publish(clear_markers);
-    return {};
-  }
 
   // 1. init variables
   stop_watch_.tic();
@@ -438,16 +423,8 @@ std::vector<StopObstacle> ObstacleStopModule::filter_stop_obstacle_for_predicted
   const auto & current_pose = odometry.pose.pose;
 
   std::vector<StopObstacle> stop_obstacles;
-  auto consistency_objects = objects;
   for (const auto & object : objects) {
     autoware_utils_debug::ScopedTimeTrack st_for_each_object("for_each_object", *time_keeper_);
-    if (use_roundabout_gap_ &&
-        roundabout_gap::is_entry_crossing_vehicle(object->predicted_object, current_pose)) {
-      // DynamicObstacleStop is the sole stop producer for entry cross traffic.
-      consistency_objects.erase(std::remove(
-        consistency_objects.begin(), consistency_objects.end(), object), consistency_objects.end());
-      continue;
-    }
 
     // 1. rough filtering
     // 1.1. Check if the obstacle is in front of the ego.
@@ -493,7 +470,7 @@ std::vector<StopObstacle> ObstacleStopModule::filter_stop_obstacle_for_predicted
   }
 
   // Check target obstacles' consistency
-  check_consistency(predicted_objects_stamp, consistency_objects, stop_obstacles);
+  check_consistency(predicted_objects_stamp, objects, stop_obstacles);
 
   prev_stop_obstacles_ = stop_obstacles;
 
@@ -701,15 +678,8 @@ bool ObstacleStopModule::is_crossing_transient_obstacle(
   const std::optional<std::pair<geometry_msgs::msg::Point, double>> & collision_point) const
 {
   // Check if obstacle is moving in the same direction as the trajectory
-  auto direction_pose = object->predicted_object.kinematics.initial_pose_with_covariance.pose;
-  const auto & velocity = object->predicted_object.kinematics.initial_twist_with_covariance.twist.linear;
-  if (use_roundabout_gap_ && roundabout_gap::in_region(odometry.pose.pose.position) &&
-      std::hypot(velocity.x, velocity.y) >= 1.0) {
-    direction_pose.orientation = autoware_utils_geometry::create_quaternion_from_yaw(
-      tf2::getYaw(direction_pose.orientation) + std::atan2(velocity.y, velocity.x));
-  }
   const double diff_angle = autoware::motion_utils::calc_diff_angle_against_trajectory(
-    traj_points, direction_pose);
+    traj_points, object->predicted_object.kinematics.initial_pose_with_covariance.pose);
 
   bool near_zero =
     (-obstacle_filtering_param_.crossing_obstacle_traj_angle_threshold < diff_angle &&

@@ -21,18 +21,6 @@
 namespace autoware::mrm_handler
 {
 
-namespace
-{
-// ponytail: hard-coded K-City region; promote to map-derived configuration only if this route changes.
-constexpr bool is_roundabout_entry_region(const double x, const double y)
-{
-  return x >= 2493.0 && x <= 2510.0 && y >= 24418.0 && y < 24478.0;
-}
-
-static_assert(is_roundabout_entry_region(2496.0, 24460.5));
-static_assert(!is_roundabout_entry_region(2496.0, 24480.0));
-}  // namespace
-
 MrmHandler::MrmHandler(const rclcpp::NodeOptions & options) : Node("mrm_handler", options)
 {
   // Parameter
@@ -374,9 +362,6 @@ void MrmHandler::checkOperationModeAvailabilityTimeout()
 
 void MrmHandler::onTimer()
 {
-  if (const auto odom = sub_odom_.take_data()) {
-    current_odom_ = odom;
-  }
   if (!isDataReady()) {
     return;
   }
@@ -564,21 +549,14 @@ autoware_adapi_v1_msgs::msg::MrmState::_behavior_type MrmHandler::getCurrentMrmB
 
 bool MrmHandler::isStopped()
 {
-  if (current_odom_ == nullptr) return false;
+  auto odom = sub_odom_.take_data();
+  if (odom == nullptr) return false;
   constexpr auto th_stopped_velocity = 0.001;
-  return (std::abs(current_odom_->twist.twist.linear.x) < th_stopped_velocity);
-}
-
-bool MrmHandler::isRoundaboutEntryRegion() const
-{
-  return current_odom_ && is_roundabout_entry_region(
-    current_odom_->pose.pose.position.x, current_odom_->pose.pose.position.y);
+  return (std::abs(odom->twist.twist.linear.x) < th_stopped_velocity);
 }
 
 bool MrmHandler::isEmergency() const
 {
-  // The entry gate state machine owns longitudinal control for this competition-only region.
-  if (isRoundaboutEntryRegion()) return false;
   return !operation_mode_availability_->autonomous || is_emergency_holding_ ||
          is_operation_mode_availability_timeout;
 }

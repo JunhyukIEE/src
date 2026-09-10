@@ -76,9 +76,6 @@ protected:
     stop_line_ = lanelet::ConstLineString3d(
       lanelet::utils::getId(), {lanelet::Point3d(lanelet::utils::getId(), 7.0, -1.0, 0.0),
                                 lanelet::Point3d(lanelet::utils::getId(), 7.0, 1.0, 0.0)});
-    roundabout_stop_line_ = lanelet::ConstLineString3d(
-      242784, {lanelet::Point3d(lanelet::utils::getId(), 7.0, -1.0, 0.0),
-               lanelet::Point3d(lanelet::utils::getId(), 7.0, 1.0, 0.0)});
 
     path_.points = {make_path_point(0.0, 0.0), make_path_point(1.0, 0.0), make_path_point(2.0, 0.0),
                     make_path_point(3.0, 0.0), make_path_point(4.0, 0.0), make_path_point(5.0, 0.0),
@@ -98,13 +95,6 @@ protected:
         node_.get(), "test_stopline"));
 
     module_->setPlannerData(planner_data_);
-
-    roundabout_module_ = std::make_shared<StopLineModule>(
-      242784, roundabout_stop_line_, 0, planner_param_, rclcpp::get_logger("test_logger"), clock_,
-      std::make_shared<autoware_utils_debug::TimeKeeper>(),
-      std::make_shared<autoware::planning_factor_interface::PlanningFactorInterface>(
-        node_.get(), "test_roundabout_stopline"));
-    roundabout_module_->setPlannerData(planner_data_);
   }
 
   void TearDown() override { rclcpp::shutdown(); }
@@ -113,10 +103,8 @@ protected:
   StopLineModule::Trajectory trajectory_;
   StopLineModule::PlannerParam planner_param_{};
   lanelet::ConstLineString3d stop_line_;
-  lanelet::ConstLineString3d roundabout_stop_line_;
   rclcpp::Clock::SharedPtr clock_;
   std::shared_ptr<StopLineModule> module_;
-  std::shared_ptr<StopLineModule> roundabout_module_;
   std::shared_ptr<autoware::behavior_velocity_planner::PlannerData> planner_data_;
 
   rclcpp::Node::SharedPtr node_;
@@ -177,29 +165,4 @@ TEST_F(StopLineModuleTest, TestUpdateStateAndStoppedTime)
   // Verify state transition to START
   EXPECT_EQ(state, StopLineModule::State::START);
   EXPECT_FALSE(stopped_time.has_value());
-}
-
-TEST_F(StopLineModuleTest, RoundaboutStartsWhenGateVehicleOccupied)
-{
-  auto objects = std::make_shared<autoware_perception_msgs::msg::PredictedObjects>();
-  planner_data_->predicted_objects = objects;
-
-  StopLineModule::State state = StopLineModule::State::STOPPED;
-  std::optional<rclcpp::Time> stopped_time = clock_->now();
-  roundabout_module_->updateStateAndStoppedTime(
-    &state, &stopped_time, clock_->now(), 0.0, true);
-  EXPECT_EQ(state, StopLineModule::State::STOPPED);
-
-  autoware_perception_msgs::msg::PredictedObject object;
-  object.shape.type = autoware_perception_msgs::msg::Shape::BOUNDING_BOX;
-  object.shape.dimensions.x = 4.0;
-  object.shape.dimensions.y = 2.0;
-  object.kinematics.initial_pose_with_covariance.pose.position.x = 2495.66;
-  object.kinematics.initial_pose_with_covariance.pose.position.y = 24471.0;
-  object.kinematics.initial_pose_with_covariance.pose.orientation.w = 1.0;
-  objects->objects.push_back(object);
-
-  roundabout_module_->updateStateAndStoppedTime(
-    &state, &stopped_time, clock_->now(), 0.0, true);
-  EXPECT_EQ(state, StopLineModule::State::START);
 }

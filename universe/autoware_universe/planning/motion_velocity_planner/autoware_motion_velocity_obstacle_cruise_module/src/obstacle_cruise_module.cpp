@@ -19,7 +19,6 @@
 #include <autoware/motion_utils/distance/distance.hpp>
 #include <autoware/motion_utils/marker/virtual_wall_marker_creator.hpp>
 #include <autoware/motion_utils/trajectory/trajectory.hpp>
-#include <autoware/motion_velocity_planner_common/roundabout_gap.hpp>
 #include <autoware_utils/geometry/geometry.hpp>
 #include <autoware_utils/ros/marker_helper.hpp>
 #include <autoware_utils/ros/parameter.hpp>
@@ -144,17 +143,6 @@ VelocityPlanningResult ObstacleCruiseModule::plan(
 {
   autoware_utils::ScopedTimeTrack st(__func__, *time_keeper_);
 
-  if (roundabout_gap::in_entry_stop_arm_region(planner_data->current_odometry.pose.pose.position)) {
-    // The entry gate's DynamicObstacleStop is the sole longitudinal decision maker here.
-    VelocityPlanningResult result;
-    if (need_to_clear_velocity_limit_) {
-      result.velocity_limit_clear_command =
-        create_velocity_limit_clear_command(clock_->now(), module_name_);
-      need_to_clear_velocity_limit_ = false;
-    }
-    return result;
-  }
-
   // 1. init variables
   stop_watch_.tic();
   debug_data_ptr_ = std::make_shared<DebugData>();
@@ -228,20 +216,7 @@ std::vector<CruiseObstacle> ObstacleCruiseModule::filter_cruise_obstacle_for_pre
 
   // cruise
   std::vector<CruiseObstacle> cruise_obstacles;
-  auto cruise_candidates = objects;
-  cruise_candidates.erase(std::remove_if(cruise_candidates.begin(), cruise_candidates.end(),
-    [&](const auto & object) {
-      if (roundabout_gap::is_entry_crossing_vehicle(object->predicted_object, current_pose)) {
-        return true;
-      }
-      const auto gap = roundabout_gap::clear(
-        object->predicted_object, odometry.pose.pose, odometry.twist.twist.linear.x,
-        (clock_->now() - predicted_objects_stamp).seconds(), decimated_traj_points,
-        decimated_traj_polys);
-      // Evaluated crossing objects are owned by dynamic_obstacle_stop, not following/yield.
-      return gap.has_value();
-    }), cruise_candidates.end());
-  for (const auto & object : cruise_candidates) {
+  for (const auto & object : objects) {
     // 1. rough filtering
     // 1.1. Check if the obstacle is in front of the ego.
     const double lon_dist_from_ego_to_obj =
@@ -271,7 +246,7 @@ std::vector<CruiseObstacle> ObstacleCruiseModule::filter_cruise_obstacle_for_pre
   // 3. precise filtering for yield cruise
   if (obstacle_filtering_param_.enable_yield) {
     const auto yield_obstacles = find_yield_cruise_obstacles(
-      odometry, cruise_candidates, predicted_objects_stamp, traj_points, vehicle_info);
+      odometry, objects, predicted_objects_stamp, traj_points, vehicle_info);
     if (yield_obstacles) {
       for (const auto & y : yield_obstacles.value()) {
         // Check if there is no member with the same UUID in cruise_obstacles

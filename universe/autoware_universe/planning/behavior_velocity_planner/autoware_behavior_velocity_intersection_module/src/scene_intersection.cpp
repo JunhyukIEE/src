@@ -19,7 +19,6 @@
 #include <autoware/behavior_velocity_planner_common/utilization/boost_geometry_helper.hpp>  // for toGeomPoly
 #include <autoware/behavior_velocity_planner_common/utilization/util.hpp>
 #include <autoware/motion_utils/trajectory/trajectory.hpp>
-#include <autoware/motion_velocity_planner_common/roundabout_gap.hpp>
 #include <autoware_lanelet2_extension/regulatory_elements/autoware_traffic_light.hpp>
 #include <autoware_lanelet2_extension/utility/utilities.hpp>
 #include <autoware_utils/geometry/boost_polygon_utils.hpp>  // for toPolygon2d
@@ -94,15 +93,6 @@ bool IntersectionModule::modifyPathVelocity(PathWithLaneId * path)
   debug_data_ = DebugData();
 
   initializeRTCStatus();
-
-  if (motion_velocity_planner::roundabout_gap::in_entry_commit_region(
-        planner_data_->current_odometry->pose.position)) {
-    // DynamicObstacleStop owns the one deliberate stop and gate release in this competition area.
-    const Safe decision{};
-    prev_decision_result_ = decision;
-    prepareRTCStatus(decision, *path);
-    return true;
-  }
 
   const auto decision_result = modifyPathVelocityDetail(path);
   prev_decision_result_ = decision_result;
@@ -290,18 +280,9 @@ DecisionResult IntersectionModule::modifyPathVelocityDetail(PathWithLaneId * pat
 
   const auto [has_collision, collision_position, too_late_detect_objects, misjudge_objects] =
     detectCollision(is_over_1st_pass_judge_line, is_over_2nd_pass_judge_line);
-  const auto & ego_position = planner_data_->current_odometry->pose.position;
-  const bool morai_entry = ego_position.x >= 2493.0 && ego_position.x <= 2503.0 &&
-    ego_position.y >= 24445.0 && ego_position.y < 24468.0;
-  if (morai_entry) {
-    // K-City competition entry: remove only the post-clear hold, never collision detection.
-    collision_state_machine_.setState(
-      has_collision ? StateMachine::State::STOP : StateMachine::State::GO);
-  } else {
-    collision_state_machine_.setStateWithMarginTime(
-      has_collision ? StateMachine::State::STOP : StateMachine::State::GO,
-      logger_.get_child("collision state_machine"), *clock_);
-  }
+  collision_state_machine_.setStateWithMarginTime(
+    has_collision ? StateMachine::State::STOP : StateMachine::State::GO,
+    logger_.get_child("collision state_machine"), *clock_);
   const bool has_collision_with_margin =
     collision_state_machine_.getState() == StateMachine::State::STOP;
   const std::string safety_diag =
