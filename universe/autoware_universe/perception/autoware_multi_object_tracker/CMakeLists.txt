@@ -72,6 +72,12 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE multi_object_tracker_node
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_classification test/test_classification.cpp)
+  target_link_libraries(test_classification ${PROJECT_NAME})
+endif()
+
 ament_auto_package(INSTALL_TO_SHARE
   launch
   config

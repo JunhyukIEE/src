@@ -107,7 +107,6 @@
       <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
       <arg name="lidar_detection_model" value="$(var lidar_detection_model)"/>
       <arg name="image_number" value="$(var image_number)"/>
-
     </include>
   </group>
 
