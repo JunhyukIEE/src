@@ -1,8 +1,8 @@
 /**:
   ros__parameters:
-    enable_whole_load: true
+    enable_whole_load: false
     enable_downsampled_whole_load: false
-    enable_partial_load: false #true 260728LJH Optimize localization speed
+    enable_partial_load: true
     enable_selected_load: false
 
     # only used when downsample_whole_load enabled
