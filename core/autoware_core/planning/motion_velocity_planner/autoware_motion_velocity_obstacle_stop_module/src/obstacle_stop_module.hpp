@@ -80,6 +80,7 @@ private:
 
   // ros parameters
   bool ignore_crossing_obstacle_{};
+  bool use_roundabout_gap_{};
   bool suppress_sudden_stop_{};
   CommonParam common_param_{};
   StopPlanningParam stop_planning_param_{};

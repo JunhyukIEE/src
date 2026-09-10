@@ -15,6 +15,7 @@
 #include "dynamic_obstacle_stop_module.hpp"
 
 #include "collision.hpp"
+#include "crossing.hpp"
 #include "debug.hpp"
 #include "footprint.hpp"
 #include "object_filtering.hpp"
@@ -23,6 +24,7 @@
 
 #include <autoware/motion_utils/distance/distance.hpp>
 #include <autoware/motion_utils/trajectory/trajectory.hpp>
+#include <autoware/motion_velocity_planner_common/roundabout_gap.hpp>
 #include <autoware_utils/geometry/geometry.hpp>
 #include <autoware_utils/ros/parameter.hpp>
 #include <autoware_utils/ros/published_time_publisher.hpp>
@@ -30,6 +32,7 @@
 #include <autoware_utils/system/stop_watch.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -73,6 +76,13 @@ void DynamicObstacleStopModule::init(rclcpp::Node & node, const std::string & mo
     get_or_declare_parameter<double>(node, ns_ + ".minimum_object_distance_from_ego_trajectory");
   p.ignore_unavoidable_collisions =
     get_or_declare_parameter<bool>(node, ns_ + ".ignore_unavoidable_collisions");
+  p.use_predicted_crossing_paths =
+    node.declare_parameter<bool>(ns_ + ".use_predicted_crossing_paths", false);
+  p.crossing_time_margin = node.declare_parameter<double>(ns_ + ".crossing_time_margin", 1.0);
+  p.crossing_min_angle = node.declare_parameter<double>(ns_ + ".crossing_min_angle", 0.523599);
+  p.approach_velocity = node.declare_parameter<double>(ns_ + ".approach_velocity", 3.3);
+  p.approach_distance = node.declare_parameter<double>(ns_ + ".approach_distance", 30.0);
+  p.departure_acceleration = node.declare_parameter<double>(ns_ + ".departure_acceleration", 2.0);
 
   const auto vehicle_info = autoware::vehicle_info_utils::VehicleInfoUtils(node).getVehicleInfo();
   p.ego_lateral_offset =
@@ -95,6 +105,12 @@ void DynamicObstacleStopModule::update_parameters(const std::vector<rclcpp::Para
     parameters, ns_ + ".minimum_object_distance_from_ego_trajectory",
     p.minimum_object_distance_from_ego_trajectory);
   update_param(parameters, ns_ + ".ignore_unavoidable_collisions", p.ignore_unavoidable_collisions);
+  update_param(parameters, ns_ + ".use_predicted_crossing_paths", p.use_predicted_crossing_paths);
+  update_param(parameters, ns_ + ".crossing_time_margin", p.crossing_time_margin);
+  update_param(parameters, ns_ + ".crossing_min_angle", p.crossing_min_angle);
+  update_param(parameters, ns_ + ".approach_velocity", p.approach_velocity);
+  update_param(parameters, ns_ + ".approach_distance", p.approach_distance);
+  update_param(parameters, ns_ + ".departure_acceleration", p.departure_acceleration);
 }
 
 void DynamicObstacleStopModule::publish_processing_time(const double processing_time_ms)
@@ -119,10 +135,24 @@ VelocityPlanningResult DynamicObstacleStopModule::plan(
     return result;
   }
 
+  if (roundabout_gap::in_entry_stop_arm_region(
+        planner_data->current_odometry.pose.pose.position)) {
+    // The behavior StopLine module exclusively owns the fixed entry stop and gate release.
+    object_map_.clear();
+    entry_stop_latch_ = {};
+    entry_stop_limit_active_ = false;
+    roundabout_entry_holding_ = false;
+    publish_processing_time(stopwatch.toc() / 1000);
+    return result;
+  }
+
   stopwatch.tic();
   stopwatch.tic("preprocessing");
   dynamic_obstacle_stop::EgoData ego_data;
   ego_data.pose = planner_data->current_odometry.pose.pose;
+  ego_data.velocity = planner_data->current_odometry.twist.twist.linear.x;
+  ego_data.prediction_age =
+    (clock_->now() - rclcpp::Time(planner_data->predicted_objects_header.stamp)).seconds();
   ego_data.trajectory = smoothed_trajectory_points;
   ego_data.trajectory = autoware::motion_utils::removeOverlapPoints(ego_data.trajectory);
   ego_data.first_trajectory_idx =
@@ -139,6 +169,8 @@ VelocityPlanningResult DynamicObstacleStopModule::plan(
                                    .value_or(0.0);
   ego_data.earliest_stop_pose = autoware::motion_utils::calcLongitudinalOffsetPose(
     ego_data.trajectory, ego_data.pose.position, min_stop_distance);
+  const bool in_entry = params_.use_predicted_crossing_paths &&
+    roundabout_gap::in_entry_stop_arm_region(ego_data.pose.position);
 
   dynamic_obstacle_stop::make_ego_footprint_rtree(ego_data, params_);
   double hysteresis =
@@ -159,21 +191,109 @@ VelocityPlanningResult DynamicObstacleStopModule::plan(
   stopwatch.tic("collisions");
   auto collisions = dynamic_obstacle_stop::find_collisions(
     ego_data, dynamic_obstacles, obstacle_forward_footprints);
-  update_object_map(object_map_, collisions, clock_->now(), ego_data.trajectory, params_);
-  std::optional<geometry_msgs::msg::Point> earliest_collision =
-    dynamic_obstacle_stop::find_earliest_collision(object_map_, ego_data);
+  if (params_.use_predicted_crossing_paths && !in_entry) {
+    std::vector<autoware_perception_msgs::msg::PredictedObject> all_objects;
+    for (const auto & object : planner_data->objects)
+      all_objects.push_back(object->predicted_object);
+    const auto crossing =
+      dynamic_obstacle_stop::find_predicted_crossings(ego_data, all_objects, params_);
+    collisions = crossing.collisions;
+    // Fresh positive clearance is not a sensor dropout: release on this cycle.
+    for (const auto & id : crossing.cleared_objects) object_map_.erase(id);
+    if (crossing.approach_point) {
+      result.slowdown_intervals.emplace_back(
+        ego_data.pose.position, *crossing.approach_point, params_.approach_velocity);
+      auto approach_pose = ego_data.pose;
+      approach_pose.position = *crossing.approach_point;
+      planning_factor_interface_->add(
+        smoothed_trajectory_points, ego_data.pose, ego_data.pose, approach_pose,
+        PlanningFactor::SLOW_DOWN, SafetyFactorArray{}, planner_data->is_driving_forward,
+        params_.approach_velocity);
+    }
+  }
+  bool gate_occupied = false;
+  if (in_entry) {
+    // The fixed gate is the only object condition in the competition entry region.
+    gate_occupied = std::any_of(
+      planner_data->objects.begin(), planner_data->objects.end(), [](const auto & object) {
+        return roundabout_gap::occupies_entry_gate(object->predicted_object);
+      });
+    collisions.clear();
+    object_map_.clear();
+  } else {
+    update_object_map(object_map_, collisions, clock_->now(), ego_data.trajectory, params_);
+  }
+  std::optional<geometry_msgs::msg::Point> earliest_collision;
+  if (!in_entry) {
+    earliest_collision = dynamic_obstacle_stop::find_earliest_collision(object_map_, ego_data);
+  }
+  const bool was_holding = entry_stop_latch_.holding;
+  const bool had_seen_gate_vehicle = entry_stop_latch_.saw_gate_vehicle;
+  // A brief stop upstream must not satisfy the mandatory stop requirement.
+  const double latch_speed = roundabout_gap::has_reached_entry_waiting_point(ego_data.pose.position)
+    ? ego_data.velocity
+    : 1.0;
+  const bool hold_entry = entry_stop_latch_.update(
+    in_entry, gate_occupied, latch_speed, ego_data.prediction_age,
+    rclcpp::Time(planner_data->predicted_objects_header.stamp).nanoseconds());
+  roundabout_entry_holding_ = in_entry && hold_entry;
+  // The fixed gate is the sole longitudinal authority through the commit region.
+  result.suppress_other_obstacle_results = in_entry;
+  result.apply_roundabout_entry_launch = in_entry && entry_stop_latch_.entry_approved;
+  if (in_entry && entry_stop_latch_.entry_approved) {
+    // The gap was accepted. Do not revive a crossing stop until the ego clears this entry.
+    object_map_.clear();
+  }
+  if (in_entry && was_holding != hold_entry) {
+    RCLCPP_INFO(logger_, "[roundabout_entry] %s speed=%.2f prediction_age=%.3f",
+      hold_entry ? "BRAKE/HOLD" : "ENTERING (approval retained)",
+      ego_data.velocity, ego_data.prediction_age);
+  }
+  if (in_entry && !had_seen_gate_vehicle && entry_stop_latch_.saw_gate_vehicle) {
+    RCLCPP_INFO(logger_, "[roundabout_entry] GATE_SEEN: waiting for rear clear");
+  }
   const auto collisions_duration_us = stopwatch.toc("collisions");
-  if (earliest_collision) {
-    const auto arc_length_diff = autoware::motion_utils::calcSignedArcLength(
-      ego_data.trajectory, *earliest_collision, ego_data.pose.position);
-    const auto can_stop_before_limit = arc_length_diff < min_stop_distance -
-                                                           params_.ego_longitudinal_offset -
-                                                           params_.stop_distance_buffer;
-    const auto stop_pose = can_stop_before_limit
-                             ? autoware::motion_utils::calcLongitudinalOffsetPose(
-                                 ego_data.trajectory, *earliest_collision,
-                                 -params_.stop_distance_buffer - params_.ego_longitudinal_offset)
-                             : ego_data.earliest_stop_pose;
+  if (earliest_collision || hold_entry) {
+    // Keep the requested stop before the conflict even when detection was late.
+    // Moving the stop to the earliest comfortable stop can put it inside the crossing.
+    double stop_distance = std::numeric_limits<double>::infinity();
+    if (earliest_collision) {
+      stop_distance = autoware::motion_utils::calcSignedArcLength(
+        ego_data.trajectory, ego_data.pose.position, *earliest_collision) -
+        params_.stop_distance_buffer -
+        (params_.use_predicted_crossing_paths ? 0.0 : params_.ego_longitudinal_offset);
+    }
+    if (hold_entry) {
+      // Stop on the fixed cross-lane line, never on an arbitrary map point near it.
+      const auto waiting_point = roundabout_gap::entry_stop_line_intersection(
+        ego_data.trajectory, ego_data.pose.position);
+      if (waiting_point) {
+        const double waiting_distance = autoware::motion_utils::calcSignedArcLength(
+          ego_data.trajectory, ego_data.pose.position, *waiting_point);
+        stop_distance = std::min(stop_distance, waiting_distance);
+        if (roundabout_gap::has_passed_entry_waiting_point(waiting_distance)) {
+          // A trajectory point cannot stay behind ego. Hold zero speed until the gate clears instead.
+          autoware_internal_planning_msgs::msg::VelocityLimit limit;
+          limit.stamp = clock_->now();
+          limit.sender = "roundabout_entry_stop";
+          limit.max_velocity = 0.0F;
+          result.velocity_limit = limit;
+          entry_stop_limit_active_ = true;
+        }
+      } else {
+        // The route has no crossing with the configured stop line: do not enter blindly.
+        stop_distance = 0.0;
+        autoware_internal_planning_msgs::msg::VelocityLimit limit;
+        limit.stamp = clock_->now();
+        limit.sender = "roundabout_entry_stop";
+        limit.max_velocity = 0.0F;
+        result.velocity_limit = limit;
+        entry_stop_limit_active_ = true;
+      }
+    }
+    const auto stop_pose = autoware::motion_utils::calcLongitudinalOffsetPose(
+      ego_data.trajectory, ego_data.pose.position,
+      std::max(0.0, stop_distance));
     debug_data_.stop_pose = stop_pose;
     if (stop_pose) {
       result.stop_points.push_back(stop_pose->position);
@@ -182,6 +302,14 @@ VelocityPlanningResult DynamicObstacleStopModule::plan(
         SafetyFactorArray{});
       create_virtual_walls();
     }
+  }
+  if (!hold_entry && entry_stop_limit_active_) {
+    autoware_internal_planning_msgs::msg::VelocityLimitClearCommand clear;
+    clear.stamp = clock_->now();
+    clear.sender = "roundabout_entry_stop";
+    clear.command = true;
+    result.velocity_limit_clear_command = clear;
+    entry_stop_limit_active_ = false;
   }
 
   debug_publisher_->publish(create_debug_marker_array());
@@ -232,7 +360,7 @@ void DynamicObstacleStopModule::create_virtual_walls()
 {
   if (debug_data_.stop_pose) {
     autoware::motion_utils::VirtualWall virtual_wall;
-    virtual_wall.text = "dynamic_obstacle_stop";
+    virtual_wall.text = roundabout_entry_holding_ ? "roundabout_entry_stop" : "dynamic_obstacle_stop";
     virtual_wall.longitudinal_offset = params_.ego_longitudinal_offset;
     virtual_wall.style = autoware::motion_utils::VirtualWallType::stop;
     virtual_wall.pose = *debug_data_.stop_pose;

@@ -47,7 +47,25 @@ struct VelocityPlanningResult
   std::optional<autoware_internal_planning_msgs::msg::VelocityLimit> velocity_limit{std::nullopt};
   std::optional<autoware_internal_planning_msgs::msg::VelocityLimitClearCommand>
     velocity_limit_clear_command{std::nullopt};
+  // Competition entry: this result owns longitudinal decisions for the current cycle.
+  bool suppress_other_obstacle_results{false};
+  // Competition entry: replace inherited stop velocities with the approved launch profile.
+  bool apply_roundabout_entry_launch{false};
 };
+
+inline void clear_longitudinal_constraints(VelocityPlanningResult & result)
+{
+  result.stop_points.clear();
+  result.slowdown_intervals.clear();
+  if (result.velocity_limit) {
+    autoware_internal_planning_msgs::msg::VelocityLimitClearCommand clear_command;
+    clear_command.stamp = result.velocity_limit->stamp;
+    clear_command.sender = result.velocity_limit->sender;
+    clear_command.command = true;
+    result.velocity_limit = std::nullopt;
+    result.velocity_limit_clear_command = clear_command;
+  }
+}
 }  // namespace autoware::motion_velocity_planner
 
 #endif  // AUTOWARE__MOTION_VELOCITY_PLANNER_COMMON__VELOCITY_PLANNING_RESULT_HPP_

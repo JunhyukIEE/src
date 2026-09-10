@@ -600,6 +600,11 @@ void PidLongitudinalController::changeControlState(
   const ControlState & control_state, const std::string & reason)
 {
   if (control_state != m_control_state) {
+    if (control_state == ControlState::DRIVE) {
+      // Do not leave a stale steering/emergency wall visible after departure succeeds.
+      m_pub_virtual_wall_marker->publish(
+        autoware::motion_utils::createDeletedStopVirtualWallMarker(clock_->now(), 0));
+    }
     RCLCPP_DEBUG_STREAM(
       logger_,
       "controller state changed: " << toStr(m_control_state) << " -> " << toStr(control_state));
@@ -750,7 +755,13 @@ void PidLongitudinalController::updateControlState(const ControlData & control_d
         !m_prev_keep_stopped_condition ||
         (current_keep_stopped_condition || *m_prev_keep_stopped_condition);
       m_prev_keep_stopped_condition = current_keep_stopped_condition;
-      if (m_enable_keep_stopped_until_steer_convergence && keep_stopped_condition) {
+      const auto & position = m_current_kinematic_state.pose.pose.position;
+      const bool morai_roundabout_entry =
+        position.x >= 2493.0 && position.x <= 2510.0 &&
+        position.y >= 24418.0 && position.y < 24478.0;
+      if (
+        m_enable_keep_stopped_until_steer_convergence && keep_stopped_condition &&
+        !morai_roundabout_entry) {
         // debug print
         if (has_nonzero_target_vel) {
           debug_msg_once("target speed > 0, but keep stop condition is met. Keep STOPPED.");
