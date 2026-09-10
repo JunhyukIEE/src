@@ -156,6 +156,10 @@ private:
   double prediction_time_horizon_rate_for_validate_lane_length_;
   double prediction_sampling_time_interval_;
   double min_velocity_for_map_based_prediction_;
+  std::vector<double> unknown_lane_region_;
+  std::unordered_map<std::string, std::pair<double, double>> unknown_lane_observations_;
+  std::unordered_map<std::string,
+    std::deque<std::pair<double, geometry_msgs::msg::Point>>> unknown_motion_history_;
   double reference_path_resolution_;
   bool check_lateral_acceleration_constraints_;
   double max_lateral_accel_;

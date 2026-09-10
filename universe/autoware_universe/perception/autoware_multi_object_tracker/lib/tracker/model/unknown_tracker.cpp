@@ -215,14 +215,9 @@ bool UnknownTracker::measure(
 bool UnknownTracker::getTrackedObject(
   const rclcpp::Time & time, types::DynamicObject & object, const bool to_publish) const
 {
-  auto time_object = time;
-
-  if (to_publish) {
-    // if it is for publish, limit the time to the last updated time
-    const auto last_measurement_time = getLatestMeasurementTime();
-    time_object = time.seconds() > last_measurement_time.seconds() ? last_measurement_time : time;
-  }
-  // else, allow extrapolation
+  // Publish pose and velocity at the requested timestamp, as for association.
+  // The polygon remains local to the same orientation and translates with its tracked center.
+  const auto time_object = time;
 
   // get the object
   object = object_;
@@ -246,8 +241,6 @@ bool UnknownTracker::getTrackedObject(
   }
 
   if (to_publish) {
-    // back to the input pose to match with the polygon shape
-    object.pose = last_pose_;
     if (!enable_motion_output_) {
       object.twist.linear.x = 0.0;
       object.twist.linear.y = 0.0;
