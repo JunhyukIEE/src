@@ -44,7 +44,9 @@ public:
 
   RequiredSubscriptionInfo getRequiredSubscriptions() const override
   {
-    return RequiredSubscriptionInfo{};
+    RequiredSubscriptionInfo subscriptions;
+    subscriptions.predicted_objects = true;
+    return subscriptions;
   }
 
 private:

@@ -16,6 +16,7 @@
 
 #include <autoware/motion_utils/resample/resample.hpp>
 #include <autoware/motion_utils/trajectory/trajectory.hpp>
+#include <autoware/motion_velocity_planner_common/roundabout_gap.hpp>
 #include <autoware/velocity_smoother/smoother/analytical_jerk_constrained_smoother/analytical_jerk_constrained_smoother.hpp>
 #include <autoware/velocity_smoother/trajectory_utils.hpp>
 #include <autoware_utils_geometry/geometry.hpp>
@@ -464,6 +465,15 @@ autoware_planning_msgs::msg::Trajectory MotionVelocityPlannerNode::generate_traj
     if (planning_result.velocity_limit_clear_command) {
       clear_velocity_limit_pub_->publish(*planning_result.velocity_limit_clear_command);
     }
+  }
+
+  const bool launch_approved = std::any_of(
+    planning_results.begin(), planning_results.end(), [](const auto & result) {
+      return result.apply_roundabout_entry_launch;
+    });
+  if (launch_approved) {
+    roundabout_gap::apply_entry_launch_profile(
+      output_trajectory_msg.points, planner_data_.current_odometry.pose.pose.position);
   }
 
   return output_trajectory_msg;

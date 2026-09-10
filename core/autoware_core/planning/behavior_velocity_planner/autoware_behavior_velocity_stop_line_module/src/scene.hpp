@@ -104,7 +104,7 @@ public:
    */
   void updateStateAndStoppedTime(
     State * state, std::optional<rclcpp::Time> * stopped_time, const rclcpp::Time & now,
-    const double & distance_to_stop_point, const bool & is_vehicle_stopped) const;
+    const double & distance_to_stop_point, const bool & is_vehicle_stopped);
 
   void updateDebugData(
     DebugData * debug_data, const geometry_msgs::msg::Pose & stop_pose, const State & state) const;
@@ -119,11 +119,14 @@ public:
   std::vector<int64_t> getLineIds() const override { return {stop_line_.id()}; }
 
 private:
+  bool isRoundaboutGateOccupied() const;
+
   const lanelet::ConstLineString3d stop_line_;  ///< Stop line geometry.
   const lanelet::Id linked_lanelet_id_;         ///< ID of the linked lanelet.
   const PlannerParam planner_param_;            ///< Parameters for the planner.
   State state_;                                 ///< Current state of the module.
   std::optional<rclcpp::Time> stopped_time_;    ///< Time when the vehicle stopped.
+  bool saw_roundabout_gate_vehicle_{false};
   DebugData debug_data_;                        ///< Debug information.
 };
 }  // namespace autoware::behavior_velocity_planner

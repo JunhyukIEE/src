@@ -19,12 +19,15 @@
 #include "autoware/trajectory/utils/crossed.hpp"
 
 #include <autoware/route_handler/route_handler.hpp>
+#include <autoware_utils_geometry/boost_polygon_utils.hpp>
 #include <rclcpp/logging.hpp>
 
 #include <autoware_internal_planning_msgs/msg/path_with_lane_id.hpp>
 
 #include <lanelet2_core/Forward.h>
 #include <lanelet2_core/primitives/Lanelet.h>
+
+#include <boost/geometry.hpp>
 
 #include <cstdarg>
 #include <memory>
@@ -34,6 +37,30 @@
 
 namespace autoware::behavior_velocity_planner
 {
+namespace
+{
+constexpr lanelet::Id kRoundaboutStopLineId = 242784;
+
+const autoware_utils_geometry::Polygon2d & roundaboutGate()
+{
+  static const autoware_utils_geometry::Polygon2d gate{
+    {{2495.10, 24468.72}, {2495.10, 24473.20}, {2496.22, 24473.20},
+     {2496.22, 24468.72}, {2495.10, 24468.72}}, {}};
+  return gate;
+}
+
+bool hasValidShape(const autoware_perception_msgs::msg::PredictedObject & object)
+{
+  using Shape = autoware_perception_msgs::msg::Shape;
+  if (object.shape.type == Shape::POLYGON) {
+    return object.shape.footprint.points.size() >= 3;
+  }
+  if (object.shape.type == Shape::BOUNDING_BOX) {
+    return object.shape.dimensions.x > 0.0 && object.shape.dimensions.y > 0.0;
+  }
+  return object.shape.type == Shape::CYLINDER && object.shape.dimensions.x > 0.0;
+}
+}  // namespace
 
 bool hasIntersection(const std::set<lanelet::Id> & a, const std::set<lanelet::Id> & b)
 {
@@ -171,7 +198,7 @@ std::pair<double, std::optional<double>> StopLineModule::getEgoAndStopPoint(
 
 void StopLineModule::updateStateAndStoppedTime(
   State * state, std::optional<rclcpp::Time> * stopped_time, const rclcpp::Time & now,
-  const double & distance_to_stop_point, const bool & is_vehicle_stopped) const
+  const double & distance_to_stop_point, const bool & is_vehicle_stopped)
 {
   switch (*state) {
     case State::APPROACH: {
@@ -188,6 +215,14 @@ void StopLineModule::updateStateAndStoppedTime(
       break;
     }
     case State::STOPPED: {
+      if (stop_line_.id() == kRoundaboutStopLineId) {
+        if (isRoundaboutGateOccupied()) {
+          *state = State::START;
+          stopped_time->reset();
+          logInfo("State transition: STOPPED -> START | Roundabout gate occupied");
+        }
+        break;
+      }
       double stop_duration = (now - **stopped_time).seconds();
       if (stop_duration > planner_param_.stop_duration_sec) {
         *state = State::START;
@@ -205,6 +240,26 @@ void StopLineModule::updateStateAndStoppedTime(
       break;
     }
   }
+}
+
+bool StopLineModule::isRoundaboutGateOccupied() const
+{
+  if (!planner_data_->predicted_objects) {
+    return false;
+  }
+
+  for (const auto & object : planner_data_->predicted_objects->objects) {
+    if (!hasValidShape(object)) {
+      continue;
+    }
+    if (boost::geometry::intersects(
+          autoware_utils_geometry::to_polygon2d(
+            object.kinematics.initial_pose_with_covariance.pose, object.shape),
+          roundaboutGate())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void StopLineModule::updateDebugData(

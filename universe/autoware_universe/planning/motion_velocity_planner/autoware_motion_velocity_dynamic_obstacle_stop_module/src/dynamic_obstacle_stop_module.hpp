@@ -16,6 +16,7 @@
 #define DYNAMIC_OBSTACLE_STOP_MODULE_HPP_
 
 #include "object_stop_decision.hpp"
+#include "crossing.hpp"
 #include "types.hpp"
 
 #include <autoware/motion_utils/marker/virtual_wall_marker_creator.hpp>
@@ -58,6 +59,9 @@ private:
 
   dynamic_obstacle_stop::PlannerParam params_;
   dynamic_obstacle_stop::ObjectStopDecisionMap object_map_;
+  dynamic_obstacle_stop::EntryStopLatch entry_stop_latch_;
+  bool entry_stop_limit_active_{false};
+  bool roundabout_entry_holding_{false};
 
   // Debug
   mutable dynamic_obstacle_stop::DebugData debug_data_;
