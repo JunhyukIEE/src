@@ -43,7 +43,7 @@
 
       # Parameter to prevent abrupt stops caused by false positives in perception
       ignore_momentary_detection:
-        enable: true
+        enable: false
         time_threshold: 0.15   # [sec] ignores detections that persist for less than this duration
 
       # Typically used when the "detection_method" is set to ObjectWithoutPath or Points
