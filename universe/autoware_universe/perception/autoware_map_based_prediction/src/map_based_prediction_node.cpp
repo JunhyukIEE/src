@@ -33,8 +33,6 @@
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include "map_based_prediction/unknown_lane.hpp"
-
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/polygon.hpp>
 
@@ -378,8 +376,6 @@ MapBasedPredictionNode::MapBasedPredictionNode(const rclcpp::NodeOptions & node_
   prediction_sampling_time_interval_ = declare_parameter<double>("prediction_sampling_delta_time");
   min_velocity_for_map_based_prediction_ =
     declare_parameter<double>("min_velocity_for_map_based_prediction");
-  unknown_lane_region_ = declare_parameter<std::vector<double>>(
-    "unknown_lane_region", std::vector<double>{});
 
   dist_threshold_for_searching_lanelet_ =
     declare_parameter<double>("dist_threshold_for_searching_lanelet");
@@ -652,17 +648,6 @@ void MapBasedPredictionNode::objectsCallback(const TrackedObjects::ConstSharedPt
 
   // Get objects detected time
   const double objects_detected_time = rclcpp::Time(in_objects->header.stamp).seconds();
-  for (auto it = unknown_motion_history_.begin(); it != unknown_motion_history_.end();) {
-    if (it->second.empty()) { it = unknown_motion_history_.erase(it); continue; }
-    const double age = objects_detected_time - it->second.back().first;
-    if (age < 0.0 || age > 0.5) it = unknown_motion_history_.erase(it);
-    else ++it;
-  }
-  for (auto it = unknown_lane_observations_.begin(); it != unknown_lane_observations_.end();) {
-    const double age = objects_detected_time - it->second.second;
-    if (age < 0.0 || age > 0.5) it = unknown_lane_observations_.erase(it);
-    else ++it;
-  }
 
   // Remove old objects information in object history
   // road users
@@ -721,39 +706,6 @@ void MapBasedPredictionNode::objectsCallback(const TrackedObjects::ConstSharedPt
         break;
       }
       default: {
-        const auto & pos = transformed_object.kinematics.pose_with_covariance.pose.position;
-        if (unknown_lane_region_.size() == 4 &&
-            pos.x >= unknown_lane_region_[0] && pos.x <= unknown_lane_region_[1] &&
-            pos.y >= unknown_lane_region_[2] && pos.y <= unknown_lane_region_[3]) {
-          auto & samples = unknown_motion_history_[autoware_utils::to_hex_string(object.object_id)];
-          recover_unknown_velocity(transformed_object, samples, objects_detected_time);
-        }
-        auto candidate = unknown_lane_candidate(transformed_object, unknown_lane_region_);
-        if (candidate) {
-          const auto id = autoware_utils::to_hex_string(object.object_id);
-          auto [it, inserted] = unknown_lane_observations_.try_emplace(
-            id, std::make_pair(objects_detected_time, objects_detected_time));
-          it->second.second = objects_detected_time;
-          // Require a short continuous track and a close, direction-compatible road lane.
-          if (objects_detected_time - it->second.first >= 0.3 &&
-              !utils::getCurrentLanelets(*candidate, lanelet_map_ptr_, road_users_history_,
-                1.5, 0.5, sigma_lateral_offset_, sigma_yaw_angle_deg_).empty()) {
-            auto predicted = getPredictionForVehicleObject(
-              output.header, *candidate, objects_detected_time, debug_markers);
-            if (predicted) {
-              auto restored = utils::convertToPredictedObject(transformed_object);
-              restored.kinematics.predicted_paths = std::move(predicted->kinematics.predicted_paths);
-              const auto & v = transformed_object.kinematics.twist_with_covariance.twist.linear;
-              const double delta = std::atan2(v.y, v.x);
-              for (auto & path : restored.kinematics.predicted_paths)
-                for (auto & pose : path.path)
-                  pose.orientation = autoware_utils::create_quaternion_from_yaw(
-                    tf2::getYaw(pose.orientation) - delta);
-              output.objects.push_back(std::move(restored));
-              break;
-            }
-          }
-        }
         auto predicted_unknown_object = utils::convertToPredictedObject(transformed_object);
         PredictedPath predicted_path = path_generator_->generatePathForNonVehicleObject(
           transformed_object, prediction_time_horizon_.unknown);

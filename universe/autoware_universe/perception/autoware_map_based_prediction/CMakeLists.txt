@@ -35,7 +35,6 @@ rclcpp_components_register_node(map_based_prediction_node
 
 ## Tests
 if(BUILD_TESTING)
-  find_package(rosbag2_cpp REQUIRED)
   find_package(ament_cmake_ros REQUIRED)
   list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_uncrustify)
 
@@ -48,7 +47,6 @@ if(BUILD_TESTING)
   target_link_libraries(test_map_based_prediction
   map_based_prediction_node
   )
-  ament_target_dependencies(test_map_based_prediction rosbag2_cpp)
 endif()
 
 ament_auto_package(

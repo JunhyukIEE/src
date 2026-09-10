@@ -8,8 +8,6 @@
   <arg name="pointcloud_container_name" description="name of pointcloud container"/>
   <arg name="use_sim_time" default="false"/>
   <arg name="vehicle_model" default="sample_vehicle"/>
-  <arg name="image_number" default="1" description="number of object-detection cameras"/>
-  <arg name="image_raw0" default="/sensing/camera/camera0/image_raw" description="front camera image topic"/>
 
   <!-- Pointcloud container -->
   <group if="$(var launch_pointcloud_container)">
@@ -34,14 +32,14 @@
   <arg name="use_vector_map" default="true" description="use vector map in prediction"/>
   <arg name="use_pointcloud_map" default="false" description="use pointcloud map in detection"/>
   <arg name="use_irregular_object_detector" default="true" description="enable pipeline for small unknown object detection"/>
-  <arg name="use_low_intensity_cluster_filter" default="false" description="keep MORAI UNKNOWN clusters outside camera0 FOV"/>
+  <arg name="use_low_intensity_cluster_filter" default="true" description="launch low_intensity_cluster_filter in clustering"/>
   <arg name="use_image_segmentation_based_filter" default="false" description="launch image_segmentation_based_filter in clustering"/>
   <arg name="use_perception_online_evaluator" default="false" description="launch perception online evaluator"/>
   <arg name="use_detection_by_tracker" default="true" description="launch detection_by_tracker function"/>
   <arg name="use_radar_tracking_fusion" default="true" description="if true, radar objects are merged in tracking module. Otherwise, radar objects are merged in detection module."/>
   <arg name="use_object_filter" default="true" description="launch object filter to filter-out detected object"/>
   <arg name="use_obstacle_segmentation_single_frame_filter" default="false" description="use single frame filter at the ground segmentation"/>
-  <arg name="use_obstacle_segmentation_time_series_filter" default="false" description="use time series filter at the ground segmentation"/>
+  <arg name="use_obstacle_segmentation_time_series_filter" default="true" description="use time series filter at the ground segmentation"/>
   <arg name="segmentation_pointcloud_fusion_camera_ids" default="[0,2,4]" description="list of camera ids used for segmentation_pointcloud_fusion node, mainly using front camera"/>
   <arg name="use_multi_channel_tracker_merger" default="false" description="if true, multi channel tracker merger is used. Otherwise, merged object is used."/>
 
@@ -92,9 +90,12 @@
     <arg name="lidar_detection_model" value="$(var lidar_detection_model)"/>
     <arg name="use_multi_channel_tracker_merger" value="$(var use_multi_channel_tracker_merger)"/>
     <arg name="vehicle_param_file" value="$(find-pkg-share $(var vehicle_model)_description)/config/vehicle_info.param.yaml"/>
-    <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
+  
+    <!-- 260821LJH lidar camera fusion debug-->
     <arg name="image_number" value="$(var image_number)"/>
-    <arg name="image_raw0" value="$(var image_raw0)"/>
+    <arg name="image_raw0" value="/sensing/camera/camera0/image_raw"/>
+    
+    <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
     <arg name="occupancy_grid_map_method" value="$(var occupancy_grid_map_method)_occupancy_grid_map"/>
     <arg name="occupancy_grid_map_updater" value="$(var occupancy_grid_map_updater)"/>
 

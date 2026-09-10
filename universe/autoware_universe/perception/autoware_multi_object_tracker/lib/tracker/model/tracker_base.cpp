@@ -214,19 +214,6 @@ void Tracker::updateClassification(
 
   auto & classification_ = object_.classification;
 
-  // UNKNOWN means no semantic evidence, not evidence against a trusted known class.
-  // Otherwise a track born as UNKNOWN needs ~15 pure known observations to change label.
-  const auto known = std::max_element(
-    classification_input.begin(), classification_input.end(),
-    [](const auto & a, const auto & b) { return a.probability < b.probability; });
-  if (known != classification_input.end() && known->probability >= 0.5F &&
-      known->label != autoware_perception_msgs::msg::ObjectClassification::UNKNOWN) {
-    classification_.erase(std::remove_if(classification_.begin(), classification_.end(),
-      [](const auto & c) {
-        return c.label == autoware_perception_msgs::msg::ObjectClassification::UNKNOWN;
-      }), classification_.end());
-  }
-
   // Update the matched classification probability with a gain
   for (const auto & new_class : classification_input) {
     bool found = false;

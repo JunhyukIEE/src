@@ -1,8 +1,5 @@
 /**:
   ros__parameters:
-    # MORAI K-City roundabout only: map-frame [xmin, xmax, ymin, ymax]. Empty disables.
-    # Unknown semantics are preserved; lane matching additionally checks motion and shape.
-    unknown_lane_region: [2470.0, 2525.0, 24465.0, 24510.0]
     prediction_time_horizon:
       vehicle: 8.0 #[s]
       pedestrian: 7.0 #[s]

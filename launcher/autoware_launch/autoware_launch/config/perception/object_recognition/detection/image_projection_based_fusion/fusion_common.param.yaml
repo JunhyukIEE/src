@@ -7,6 +7,7 @@
     rois_timeout_sec: 0.5
     msg3d_timeout_sec: 0.5 #0.05
     image_buffer_size: 15
+
     point_project_to_unrectified_image: [false]
     filter_scope_min_x: -100.0
     filter_scope_min_y: -100.0
