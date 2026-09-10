@@ -141,7 +141,7 @@
         duration: 5.0                       # [s]
         max_lateral_jerk: 100.0             # [m/s3]
         overhang_tolerance: 0.0             # [m]
-        unsafe_hysteresis_threshold: 5      # [/]
+        unsafe_hysteresis_threshold: 1      # [/]
         deceleration_sampling_num: 5 # [/]
 
       lane_change_finish_judge_buffer: 1.0 #2.0  260728LJH short lane change      # [m]

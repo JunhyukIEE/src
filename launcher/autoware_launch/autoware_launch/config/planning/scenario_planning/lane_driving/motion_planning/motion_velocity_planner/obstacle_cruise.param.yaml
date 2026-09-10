@@ -5,7 +5,7 @@
         planning_algorithm: "pid_base" # currently supported algorithm is "pid_base"
 
       cruise_planning:
-        idling_time: 2.0 # idling time to detect front vehicle starting deceleration [s]
+        idling_time: 1.2 # [s] following response margin; braking-distance terms remain enabled
         min_ego_accel_for_rss: -1.0 # ego's acceleration to calculate RSS distance [m/ss]
         min_object_accel_for_rss: -1.0 # front obstacle's acceleration to calculate RSS distance [m/ss]
         safe_distance_margin : 3.0 # This is also used as a stop margin [m]
@@ -23,9 +23,9 @@
               output_ratio_during_accel: 0.6 # target acceleration is multiplied with this value while ego accelerates to catch up the front vehicle [-]
               vel_to_acc_weight: 12.0 # target acceleration is calculated by (target_velocity - current_velocity) * vel_to_acc_weight [-]
 
-              enable_jerk_limit_to_output_acc: false
+              enable_jerk_limit_to_output_acc: true
 
-              disable_target_acceleration: true
+              disable_target_acceleration: false # compute acceleration from following error and limit jerk
 
           velocity_insertion_based_planner:
               kp_acc: 6.0
