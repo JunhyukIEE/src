@@ -168,6 +168,9 @@ void RadiusSearch2dFilter::filter(
     RCLCPP_WARN(
       rclcpp::get_logger("OccupancyGridMapOutlierFilterComponent"),
       "Skip outlier filter since too much low_confidence pointcloud!");
+    // No points were accepted; do not publish the preallocated zero-filled buffer.
+    output.data.clear();
+    outlier.data = low_conf_xyz_cloud.data;
     return;
   }
   int x_offset = low_conf_xyz_cloud.fields[pcl::getFieldIndex(low_conf_xyz_cloud, "x")].offset;
@@ -374,8 +377,9 @@ void OccupancyGridMapOutlierFilterComponent::onOccupancyGridMapAndPointCloud2(
     if (time_keeper_)
       inner_st_ptr = std::make_unique<ScopedTimeTrack>("low_confidence_pc_filter", *time_keeper_);
 
-    std::memcpy(&outlier_pc.data[0], &low_confidence_pc.data[0], low_confidence_pc.data.size());
-    outlier_pc.data.resize(low_confidence_pc.data.size());
+    outlier_pc.data = low_confidence_pc.data;
+    // Disabled radius filtering rejects low-confidence points, not map-origin placeholders.
+    filtered_low_confidence_pc.data.clear();
   }
 
   // Concatenate high confidence pointcloud from occupancy grid map and non-outlier pointcloud
