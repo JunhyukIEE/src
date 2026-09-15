@@ -57,13 +57,15 @@ PreprocessCuda::PreprocessCuda(const CenterPointConfig & config, cudaStream_t & 
 
 template <std::size_t POINT_NUM_FEATURES>
 __global__ void generateSweepPoints_kernel(
-  const InputPointType * __restrict__ input_points, std::size_t points_size, float time_lag,
+  const InputPointType * __restrict__ input_points, std::size_t points_size, std::size_t point_step,
+  float time_lag,
   const float * transform_array, float * __restrict__ output_points)
 {
   int point_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (point_idx >= points_size) return;
 
-  const InputPointType * input_point = &input_points[point_idx];
+  const auto * input_point = reinterpret_cast<const InputPointType *>(
+    reinterpret_cast<const unsigned char *>(input_points) + point_idx * point_step);
   float input_x = input_point->x;
   float input_y = input_point->y;
   float input_z = input_point->z;
@@ -100,7 +102,7 @@ __global__ void shufflePoints_kernel(
   int src_idx = indices[(point_idx + offset) % max_size];
   int dst_idx = point_idx;
 
-  if (dst_idx >= points_size) {
+  if (src_idx >= points_size) {
     shuffled_points[POINT_NUM_FEATURES * dst_idx + 0] = INFINITY;
     shuffled_points[POINT_NUM_FEATURES * dst_idx + 1] = INFINITY;
     shuffled_points[POINT_NUM_FEATURES * dst_idx + 2] = INFINITY;
@@ -346,7 +348,7 @@ __global__ void generateFeatures_kernel(
 }
 
 cudaError_t PreprocessCuda::generateSweepPoints_launch(
-  const InputPointType * input_points, std::size_t points_size, float time_lag,
+  const InputPointType * input_points, std::size_t points_size, std::size_t point_step, float time_lag,
   const float * transform_array, float * output_points)
 {
   dim3 blocks((points_size + 256 - 1) / 256);
@@ -354,10 +356,10 @@ cudaError_t PreprocessCuda::generateSweepPoints_launch(
 
   if (config_.point_feature_size_ == POINT_DIM_XYZT) {
     generateSweepPoints_kernel<POINT_DIM_XYZT><<<blocks, threads, 0, stream_>>>(
-      input_points, points_size, time_lag, transform_array, output_points);
+      input_points, points_size, point_step, time_lag, transform_array, output_points);
   } else if (config_.point_feature_size_ == POINT_DIM_XYZIT) {
     generateSweepPoints_kernel<POINT_DIM_XYZIT><<<blocks, threads, 0, stream_>>>(
-      input_points, points_size, time_lag, transform_array, output_points);
+      input_points, points_size, point_step, time_lag, transform_array, output_points);
   } else {
     throw std::runtime_error("Value of point_features_size is not supported!");
   }

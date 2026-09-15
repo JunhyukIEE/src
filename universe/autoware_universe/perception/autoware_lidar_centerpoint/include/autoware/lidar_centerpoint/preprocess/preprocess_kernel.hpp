@@ -28,7 +28,7 @@ public:
   PreprocessCuda(const CenterPointConfig & config, cudaStream_t & stream);
 
   cudaError_t generateSweepPoints_launch(
-    const InputPointType * input_points, std::size_t points_size, float time_lag,
+    const InputPointType * input_points, std::size_t points_size, std::size_t point_step, float time_lag,
     const float * transform_array, float * output_points);
 
   cudaError_t shufflePoints_launch(

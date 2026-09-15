@@ -50,6 +50,27 @@ bool VoxelGeneratorTemplate::enqueuePointCloud(
   const std::shared_ptr<const cuda_blackboard::CudaPointCloud2> & input_pointcloud_msg_ptr,
   const tf2_ros::Buffer & tf_buffer)
 {
+  const auto & cloud = *input_pointcloud_msg_ptr;
+  bool valid_layout = !cloud.is_bigendian && cloud.point_step >= sizeof(InputPointType) &&
+    cloud.point_step % alignof(InputPointType) == 0 &&
+    cloud.row_step == static_cast<std::size_t>(cloud.width) * cloud.point_step;
+  for (const auto & name : {"x", "y", "z", "intensity"}) {
+    if (std::string(name) == "intensity" && config_.point_feature_size_ == 4) continue;
+    const std::size_t offset = std::string(name) == "x" ? 0 :
+      std::string(name) == "y" ? 4 : std::string(name) == "z" ? 8 : 12;
+    const auto datatype = offset == 12 ? sensor_msgs::msg::PointField::UINT8 :
+      sensor_msgs::msg::PointField::FLOAT32;
+    bool found = false;
+    for (const auto & field : cloud.fields) {
+      found |= field.name == name && field.offset == offset &&
+        field.datatype == datatype && field.count == 1;
+    }
+    valid_layout &= found;
+  }
+  if (!valid_layout) {
+    RCLCPP_ERROR(rclcpp::get_logger(config_.logger_name_), "Unsupported CenterPoint point cloud layout");
+    return false;
+  }
   return pd_ptr_->enqueuePointCloud(input_pointcloud_msg_ptr, tf_buffer);
 }
 
@@ -85,7 +106,8 @@ std::size_t VoxelGenerator::generateSweepPoints(float * points_d)
 
     pre_ptr_->generateSweepPoints_launch(
       reinterpret_cast<InputPointType *>(input_pointcloud_msg_ptr->data.get()), sweep_num_points,
-      time_lag, affine_past2current_d_.get(), points_d + output_offset);
+      input_pointcloud_msg_ptr->point_step, time_lag, affine_past2current_d_.get(),
+      points_d + output_offset);
 
     point_counter += sweep_num_points;
   }
