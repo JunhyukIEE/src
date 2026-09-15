@@ -960,8 +960,8 @@ Visualization Manager:
                 Depth: 5
                 Durability Policy: Volatile
                 History Policy: Keep Last
-                Reliability Policy: Best Effort
-                Value: /perception/traffic_light_recognition/traffic_light/debug/rois
+                Reliability Policy: Reliable
+                Value: /perception/traffic_light_recognition/camera7/debug/rois
               Value: true
             - Class: rviz_default_plugins/MarkerArray
               Enabled: true
