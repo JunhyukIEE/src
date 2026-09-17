@@ -41,7 +41,7 @@
         enable: true
 
         # Regularization scale factor
-        scale_factor: 0.01
+        scale_factor: 0.08
 
 
     initial_pose_estimation:
