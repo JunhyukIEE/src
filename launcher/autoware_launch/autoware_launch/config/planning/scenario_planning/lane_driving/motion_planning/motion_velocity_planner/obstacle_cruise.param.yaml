@@ -5,8 +5,8 @@
         planning_algorithm: "pid_base" # currently supported algorithm is "pid_base"
 
       cruise_planning:
-        idling_time: 2.0 # idling time to detect front vehicle starting deceleration [s]
-        min_ego_accel_for_rss: -1.0 # ego's acceleration to calculate RSS distance [m/ss]
+        idling_time: 1.0 # idling time to detect front vehicle starting deceleration [s]
+        min_ego_accel_for_rss: -2.0 # ego's acceleration to calculate RSS distance [m/ss]
         min_object_accel_for_rss: -1.0 # front obstacle's acceleration to calculate RSS distance [m/ss]
         safe_distance_margin : 3.0 # This is also used as a stop margin [m]
 
