@@ -51,7 +51,7 @@
 
       collision_detection:
         consider_wrong_direction_vehicle: false
-        collision_detection_hold_time: 0.5
+        collision_detection_hold_time: 0.2
         min_predicted_path_confidence: 0.05
         target_type:
           car: true
@@ -74,7 +74,7 @@
           collision_end_margin_time: 2.0
         not_prioritized:
           collision_start_margin_time: 0.5
-          collision_end_margin_time: 0.5
+          collision_end_margin_time: 0.2
         yield_on_green_traffic_light:
           distance_to_assigned_lanelet_start: 10.0
           duration: 3.0
@@ -114,7 +114,7 @@
         merging_judge_angle_threshold: 0.785
 
       debug:
-        ttc: [0]
+        ttc: [227214]
 
       enable_rtc:
         intersection: false
