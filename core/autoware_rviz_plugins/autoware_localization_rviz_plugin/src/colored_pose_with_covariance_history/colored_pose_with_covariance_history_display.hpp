@@ -15,6 +15,7 @@
 #ifndef COLORED_POSE_WITH_COVARIANCE_HISTORY__COLORED_POSE_WITH_COVARIANCE_HISTORY_DISPLAY_HPP_
 #define COLORED_POSE_WITH_COVARIANCE_HISTORY__COLORED_POSE_WITH_COVARIANCE_HISTORY_DISPLAY_HPP_
 
+#include <overlay_utils.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rviz_common/message_filter_display.hpp>
 
@@ -22,7 +23,9 @@
 #include <autoware_internal_debug_msgs/msg/int32_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
+#include <chrono>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -38,6 +41,7 @@ class IntProperty;
 class BoolProperty;
 class EnumProperty;
 class RosTopicProperty;
+class StringProperty;
 }  // namespace rviz_common::properties
 
 namespace rviz_plugins
@@ -76,6 +80,7 @@ private:  // NOLINT : suppress redundancy warnings
     const autoware_internal_debug_msgs::msg::Float32Stamped::ConstSharedPtr message);
 
   void update_history();
+  void update_overlay();
 
   Ogre::ColourValue get_color_from_value(double value);
 
@@ -92,10 +97,14 @@ private:  // NOLINT : suppress redundancy warnings
 
   std::deque<pose_with_value> history_;
   std::string target_frame_;
-  ValueType current_value_type_;
+  ValueType current_value_type_{ValueType::Float32};
   std::unique_ptr<rviz_rendering::BillboardLine> lines_;
   rclcpp::Time last_stamp_;
-  double last_value_;
+  double last_value_{std::numeric_limits<double>::quiet_NaN()};
+  std::chrono::steady_clock::time_point value_received_{};
+  std::unique_ptr<autoware_overlay_rviz_plugin::OverlayObject> overlay_;
+  rviz_common::properties::BoolProperty * property_overlay_;
+  rviz_common::properties::StringProperty * property_overlay_label_;
 
   rclcpp::Node::SharedPtr node_;
   rclcpp::Subscription<autoware_internal_debug_msgs::msg::Int32Stamped>::SharedPtr int32_sub_;

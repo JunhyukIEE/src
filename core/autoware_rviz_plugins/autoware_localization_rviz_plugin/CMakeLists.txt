@@ -23,10 +23,18 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 
 target_link_libraries(${PROJECT_NAME}
   ${QT_LIBRARIES}
+  autoware_overlay_rviz_plugin::autoware_overlay_rviz_plugin
 )
 
 # Export the plugin to be imported by rviz2
 pluginlib_export_plugin_description_file(rviz_common plugins/plugin_description.xml)
+
+if(BUILD_TESTING)
+  ament_add_gtest(test_value_overlay test/test_value_overlay.cpp)
+  target_include_directories(test_value_overlay PRIVATE src)
+  target_link_libraries(test_value_overlay Qt5::Widgets)
+  set_tests_properties(test_value_overlay PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
 
 ament_auto_package(
   INSTALL_TO_SHARE

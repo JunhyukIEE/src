@@ -1,6 +1,8 @@
 /**:
   ros__parameters:
     scale: 3.0
+    marker_z_offset: 2.0  # visualization only; above the vehicle model
+    marker_alpha: 0.8
     error_ellipse_size: 1.5
     warn_ellipse_size: 1.2
     error_ellipse_size_lateral_direction: 0.3

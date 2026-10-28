@@ -42,6 +42,8 @@ private:
   std::unique_ptr<autoware_utils_diagnostics::DiagnosticsInterface> diagnostics_error_monitor_;
 
   double scale_;
+  double marker_z_offset_;
+  double marker_alpha_;
   double error_ellipse_size_;
   double warn_ellipse_size_;
   double error_ellipse_size_lateral_direction_;

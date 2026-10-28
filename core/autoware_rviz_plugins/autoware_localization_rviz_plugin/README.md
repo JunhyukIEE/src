@@ -5,6 +5,16 @@
 This plugin can display the localization history obtained by ekf_localizer, ndt_scan_matching, and GNSS.
 If the uncertainty of the estimated pose is given, it can also be displayed.
 
+### Latest-value overlay
+
+`ColoredPoseWithCovarianceHistory` has an optional `Value Overlay` property and
+`Label` child property. The launch RViz configuration enables it for NVTL at the
+top left of the 3D view. It uses the **same color function and min/max properties
+as the path**, not an independent quality threshold. The configured NVTL range
+is 2.3–3.3 (cyan to yellow), with blue below range and yellow above range.
+Missing/non-finite values or no reception for one wall-clock second display a
+neutral dash and `NO DATA`. The value is an NDT match score, not position error.
+
 ## Inputs / Outputs
 
 ### Input

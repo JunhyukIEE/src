@@ -14,17 +14,21 @@
 
 #include "colored_pose_with_covariance_history_display.hpp"
 
+#include "value_overlay.hpp"
+
 #include <rviz_common/properties/bool_property.hpp>
 #include <rviz_common/properties/color_property.hpp>
 #include <rviz_common/properties/enum_property.hpp>
 #include <rviz_common/properties/float_property.hpp>
 #include <rviz_common/properties/int_property.hpp>
 #include <rviz_common/properties/ros_topic_property.hpp>
+#include <rviz_common/properties/string_property.hpp>
 #include <rviz_common/validate_floats.hpp>
 #include <rviz_rendering/objects/billboard_line.hpp>
 
 #include <tf2/LinearMath/Quaternion.h>
 
+#include <cmath>
 #include <limits>
 #include <memory>
 
@@ -79,6 +83,10 @@ ColoredPoseWithCovarianceHistory::ColoredPoseWithCovarianceHistory()
 
   property_max_value_ =
     new rviz_common::properties::FloatProperty("Max Value", 1.0, "", property_auto_min_max_);
+  property_overlay_ = new rviz_common::properties::BoolProperty(
+    "Value Overlay", false, "Show latest value at the top left, using the path color scale", this);
+  property_overlay_label_ = new rviz_common::properties::StringProperty(
+    "Label", "Value", "Overlay title", property_overlay_);
 }
 
 ColoredPoseWithCovarianceHistory::~ColoredPoseWithCovarianceHistory()
@@ -101,6 +109,12 @@ void ColoredPoseWithCovarianceHistory::onInitialize()
   }
 
   property_value_topic_->initialize(node_abstraction);
+  overlay_ = std::make_unique<autoware_overlay_rviz_plugin::OverlayObject>(
+    "localization_value_" + std::to_string(reinterpret_cast<std::uintptr_t>(this)));
+  overlay_->updateTextureSize(200, 112);
+  overlay_->setDimensions(200, 112);
+  overlay_->setPosition(12, 12);
+  overlay_->hide();
 }
 
 void ColoredPoseWithCovarianceHistory::onEnable()
@@ -111,6 +125,7 @@ void ColoredPoseWithCovarianceHistory::onEnable()
 void ColoredPoseWithCovarianceHistory::onDisable()
 {
   unsubscribe();
+  if (overlay_) overlay_->hide();
 }
 
 void ColoredPoseWithCovarianceHistory::update(float wall_dt, float ros_dt)
@@ -124,6 +139,30 @@ void ColoredPoseWithCovarianceHistory::update(float wall_dt, float ros_dt)
       update_visualization();
     }
   }
+  update_overlay();
+}
+
+void ColoredPoseWithCovarianceHistory::update_overlay()
+{
+  if (!overlay_) return;
+  if (!property_overlay_->getBool()) {
+    overlay_->hide();
+    return;
+  }
+  overlay_->show();
+  const bool fresh = std::isfinite(last_value_) &&
+                     std::chrono::steady_clock::now() - value_received_ < std::chrono::seconds(1);
+  const auto value_color =
+    fresh ? get_color_from_value(last_value_) : Ogre::ColourValue(0.5, 0.5, 0.5);
+  auto buffer = overlay_->getBuffer();
+  auto image = buffer.getQImage(*overlay_);
+  image.fill(Qt::transparent);
+  QPainter painter(&image);
+  paint_value_overlay(
+    painter, property_overlay_label_->getString(), last_value_, fresh,
+    QColor::fromRgbF(value_color.r, value_color.g, value_color.b), property_min_value_->getFloat(),
+    property_max_value_->getFloat(), property_line_min_color_->getColor(),
+    property_line_max_color_->getColor());
 }
 
 void ColoredPoseWithCovarianceHistory::update_value_type()
@@ -146,6 +185,7 @@ void ColoredPoseWithCovarianceHistory::update_value_topic()
   lines_->clear();
   int32_sub_.reset();
   float32_sub_.reset();
+  last_value_ = std::numeric_limits<double>::quiet_NaN();
   if (property_value_topic_->getStdString().empty()) {
     setStatus(rviz_common::properties::StatusProperty::Error, "Value Topic", "No topic was set.");
     return;
@@ -233,6 +273,7 @@ void ColoredPoseWithCovarianceHistory::unsubscribe()
 void ColoredPoseWithCovarianceHistory::processMessage(
   const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr message)
 {
+  if (!std::isfinite(last_value_)) return;
   if (
     !rviz_common::validateFloats(message->pose.pose) ||
     !rviz_common::validateFloats(message->pose.covariance)) {
@@ -255,12 +296,14 @@ void ColoredPoseWithCovarianceHistory::process_int32_message(
   const autoware_internal_debug_msgs::msg::Int32Stamped::ConstSharedPtr message)
 {
   last_value_ = static_cast<double>(message->data);
+  value_received_ = std::chrono::steady_clock::now();
 }
 
 void ColoredPoseWithCovarianceHistory::process_float32_message(
   const autoware_internal_debug_msgs::msg::Float32Stamped::ConstSharedPtr message)
 {
   last_value_ = static_cast<double>(message->data);
+  value_received_ = std::chrono::steady_clock::now();
 }
 
 void ColoredPoseWithCovarianceHistory::update_history()

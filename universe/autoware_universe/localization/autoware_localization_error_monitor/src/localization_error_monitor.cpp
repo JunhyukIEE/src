@@ -39,6 +39,8 @@ LocalizationErrorMonitor::LocalizationErrorMonitor(const rclcpp::NodeOptions & o
 : Node("localization_error_monitor", options)
 {
   scale_ = this->declare_parameter<double>("scale");
+  marker_z_offset_ = this->declare_parameter<double>("marker_z_offset", 0.0);
+  marker_alpha_ = std::clamp(this->declare_parameter<double>("marker_alpha", 0.1), 0.0, 1.0);
   error_ellipse_size_ = this->declare_parameter<double>("error_ellipse_size");
   warn_ellipse_size_ = this->declare_parameter<double>("warn_ellipse_size");
 
@@ -68,8 +70,13 @@ void LocalizationErrorMonitor::on_odom(nav_msgs::msg::Odometry::ConstSharedPtr i
 
   ellipse_ = autoware::localization_util::calculate_xy_ellipse(input_msg->pose, scale_);
 
-  const auto ellipse_marker = autoware::localization_util::create_ellipse_marker(
+  auto ellipse_marker = autoware::localization_util::create_ellipse_marker(
     ellipse_, input_msg->header, input_msg->pose);
+  // Display offset only: ellipse dimensions and localization diagnostics stay unchanged.
+  ellipse_marker.pose.position.z += marker_z_offset_;
+  ellipse_marker.color.a = marker_alpha_;
+  ellipse_marker.color.g = 0.8;
+  ellipse_marker.scale.z = 0.04;
   ellipse_marker_pub_->publish(ellipse_marker);
 
   // update localization accuracy diagnostics
