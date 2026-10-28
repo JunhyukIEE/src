@@ -78,6 +78,10 @@ ament_export_targets(${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rviz_common
   rviz_ogre_vendor
+  rviz_rendering
+  autoware_vehicle_msgs
+  autoware_internal_planning_msgs
+  autoware_perception_msgs
 )
 
 if(BUILD_TESTING)

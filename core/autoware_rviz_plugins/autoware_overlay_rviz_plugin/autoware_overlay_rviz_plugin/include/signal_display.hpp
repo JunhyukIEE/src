@@ -58,7 +58,6 @@ protected:
 
 private Q_SLOTS:
   void updateOverlaySize();
-  void updateSmallOverlaySize();
   void updateOverlayPosition();
   void updateOverlayColor();
   void updateTurnSignalBlinkingMode();
